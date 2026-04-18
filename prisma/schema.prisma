@@ -1,0 +1,230 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("SHOP_ADMIN") // SAAS_ADMIN, SHOP_ADMIN
+  shopId    String?
+  shop      BarberShop? @relation(fields: [shopId], references: [id])
+  tickets   Ticket[]
+  ticketMessages TicketMessage[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Plan {
+  id              String   @id @default(cuid())
+  name            String
+  price           Float
+  discount        Float    @default(0)
+  interval        String   // "month" | "year"
+  features        String   // JSON string of features
+  maxAppointments Int?     // null for unlimited
+  isPopular       Boolean  @default(false)
+  monthlyPlanId   String?
+  shops           BarberShop[]
+  subscriptions   Subscription[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([price])
+}
+
+model BarberShop {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String
+  address     String
+  phone       String
+  document    String?
+  logo        String?
+  banner      String?
+  status      String   @default("active") // active, blocked, trial, expired
+  planId      String?
+  plan        Plan?    @relation(fields: [planId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  openingHours String? // JSON string
+
+  users        User[]
+  services     Service[]
+  barbers      Barber[]
+  appointments Appointment[]
+  reviews      Review[]
+  subscriptions Subscription[]
+  payments     Payment[]
+  tickets      Ticket[]
+
+  @@index([planId])
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  price       Float
+  duration    Int
+  description String?
+  shopId      String
+  shop        BarberShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+}
+
+model Barber {
+  id          String   @id @default(cuid())
+  name        String
+  role        String
+  avatar      String?
+  shopId      String
+  shop        BarberShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+}
+
+model Appointment {
+  id            String   @id @default(cuid())
+  customerName  String
+  customerPhone String
+  date          String
+  time          String
+  status        String   @default("pending") // pending, confirmed, cancelled, completed
+  
+  serviceId     String
+  service       Service  @relation(fields: [serviceId], references: [id])
+  
+  barberId      String
+  barber        Barber   @relation(fields: [barberId], references: [id])
+  
+  shopId        String
+  shop          BarberShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  reviews       Review[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  customerName  String
+  rating        Int
+  comment       String
+  date          String
+  status        String   @default("pending") // pending, approved, approved_for_display
+  
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  
+  shopId        String
+  shop          BarberShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Subscription {
+  id                        String   @id @default(cuid())
+  status                    String   @default("active") // active, past_due, canceled, unpaid, trial
+  currentPeriodEnd          DateTime
+  mercadoPagoSubscriptionId String?
+  
+  shopId                    String
+  shop                      BarberShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  planId                    String
+  plan                      Plan       @relation(fields: [planId], references: [id])
+  
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  amount      Float
+  currency    String   @default("BRL")
+  status      String   @default("succeeded") // succeeded, pending, failed
+  method      String   // credit_card, pix, bank_transfer
+  date        DateTime @default(now())
+  description String?
+  
+  shopId      String
+  shop        BarberShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SystemLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  target    String
+  details   String
+  type      String   // info, warning, error, security
+  timestamp DateTime @default(now())
+}
+
+model Coupon {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  discountType    String   // "percentage" | "fixed"
+  discountValue   Float
+  maxUses         Int?
+  usedCount       Int      @default(0)
+  active          Boolean  @default(true)
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Ticket {
+  id          String   @id @default(cuid())
+  subject     String
+  description String
+  status      String   @default("open") // open, in_progress, closed
+  priority    String   @default("medium") // low, medium, high
+  category    String   @default("support") // support, billing, feature_request, bug
+  
+  shopId      String
+  shop        BarberShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  messages    TicketMessage[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([shopId])
+  @@index([userId])
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  content   String
+  isAdmin   Boolean  @default(false) // true if sent by SAAS_ADMIN
+  
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([userId])
+}
+
