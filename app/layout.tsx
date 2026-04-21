@@ -14,7 +14,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Barbearia do Rafa",
+  title: "Next Flow Barber",
   description: "Sistema de agendamento e gestão para barbearias profissionais.",
 };
 
