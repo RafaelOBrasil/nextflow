@@ -417,7 +417,7 @@ export default function AdminPage() {
             <div className="w-8 h-8 bg-neutral-900 rounded-lg flex items-center justify-center">
               <Scissors className="text-white w-5 h-5" />
             </div>
-            <span className="font-bold text-lg tracking-tight">BarberFlow</span>
+            <span className="font-bold text-lg tracking-tight">Next Flow Barber</span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden p-2 hover:bg-neutral-100 rounded-lg">
             <X className="w-6 h-6" />

@@ -58,7 +58,7 @@ export default function LandingPage() {
             >
               <Scissors className="text-white w-5 h-5 md:w-6 md:h-6" />
             </motion.div>
-            <span className="font-bold text-lg md:text-xl tracking-tight">BarberFlow</span>
+            <span className="font-bold text-lg md:text-xl tracking-tight">Next Flow Barber</span>
           </div>
           <nav className="hidden lg:flex items-center gap-8 text-sm font-medium text-neutral-600">
             <a href="#features" className="hover:text-neutral-900 transition-colors">Recursos</a>
@@ -138,7 +138,7 @@ export default function LandingPage() {
             {[
               { icon: Calendar, title: "Agendamento 24/7", desc: "Seus clientes podem marcar horários a qualquer momento, sem precisar ligar ou enviar mensagens." },
               { icon: Shield, title: "Painel de Gestão", desc: "Controle total sobre seus serviços, barbeiros e horários em um painel administrativo completo." },
-              { icon: Star, title: "Link Personalizado", desc: "Tenha um endereço exclusivo para sua barbearia (ex: barberflow.com/sua-barbearia)." }
+              { icon: Star, title: "Link Personalizado", desc: "Tenha um endereço exclusivo para sua barbearia (ex: nextflowbarber.online/sua-barbearia)." }
             ].map((feature, i) => (
               <motion.div 
                 key={i}
@@ -385,7 +385,7 @@ export default function LandingPage() {
               <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center">
                 <Scissors className="text-white w-6 h-6" />
               </div>
-              <span className="font-bold text-2xl tracking-tight">BarberFlow</span>
+              <span className="font-bold text-2xl tracking-tight">Next Flow Barber</span>
             </div>
             <nav className="flex flex-wrap justify-center gap-8 md:gap-12 text-sm font-bold uppercase tracking-widest text-neutral-400">
               <a href="#features" className="hover:text-neutral-900 transition-colors">Recursos</a>
@@ -397,7 +397,7 @@ export default function LandingPage() {
           
           <div className="flex flex-col md:flex-row justify-between items-center gap-8 pt-8 border-t border-neutral-100">
             <p className="text-neutral-500 text-sm font-medium text-center md:text-left">
-              © 2024 BarberFlow. Todos os direitos reservados.
+              © 2026 Next Flow Barber. Todos os direitos reservados.
             </p>
             <div className="flex items-center gap-6">
               <button 
