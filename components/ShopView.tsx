@@ -300,6 +300,11 @@ export default function ShopView({ shop }: ShopViewProps) {
         <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-neutral-100 mb-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
+              {shop.logo && (
+                <div className="w-20 h-20 bg-white rounded-3xl p-1 shadow-lg border border-neutral-100 mb-6 overflow-hidden -mt-16 relative z-20">
+                  <img src={shop.logo} alt={`${shop.name} Logo`} className="w-full h-full object-cover rounded-2xl" />
+                </div>
+              )}
               <h1 className="text-4xl font-bold tracking-tight mb-2">{shop.name}</h1>
               <p className="text-neutral-500 mb-4 leading-relaxed">{shop.description}</p>
               <div className="flex flex-wrap gap-4 text-sm text-neutral-400">

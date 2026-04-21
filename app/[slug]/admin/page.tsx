@@ -26,7 +26,9 @@ import {
   Star,
   Menu,
   X,
-  LifeBuoy
+  LifeBuoy,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { BarberShop, Service, Barber, Appointment } from '@/lib/types';
@@ -187,6 +189,21 @@ export default function AdminPage() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'banner' | 'logo') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('A imagem deve ter no máximo 5MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setShop(prev => prev ? { ...prev, [field]: reader.result as string } : null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const sendWhatsAppMessage = (phone: string, message: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
     const url = `https://wa.me/${cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone}?text=${encodeURIComponent(message)}`;
@@ -231,10 +248,20 @@ export default function AdminPage() {
 
   if (!shop) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50" suppressHydrationWarning>
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
-          <Scissors className="w-10 h-10 text-neutral-900" />
-        </motion.div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-50 p-4 text-center">
+        <div className="w-20 h-20 bg-neutral-100 rounded-3xl flex items-center justify-center mb-8">
+          <Scissors className="text-neutral-400 w-10 h-10" />
+        </div>
+        <h1 className="text-4xl font-bold mb-4 tracking-tight">Barbearia não encontrada</h1>
+        <p className="text-neutral-500 mb-8 max-w-md leading-relaxed">
+          Não foi possível encontrar o painel administrativo para esta barbearia.
+        </p>
+        <button 
+          onClick={() => router.push('/')}
+          className="bg-neutral-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-neutral-800 transition-all shadow-lg active:scale-95"
+        >
+          Voltar para o Início
+        </button>
       </div>
     );
   }
@@ -472,17 +499,19 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-2 md:gap-3">
             <button 
-              onClick={() => window.open(`/${shop.slug}`, '_blank')}
-              className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl text-xs md:text-sm font-bold text-neutral-600 hover:bg-neutral-50 transition-all"
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/${shop.slug}`);
+                alert('Link copiado para a área de transferência!');
+              }}
+              className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl text-xs md:text-sm font-bold text-neutral-600 hover:bg-neutral-50 transition-all border border-neutral-200"
             >
-              <span className="hidden md:inline">Ver Página</span> <ExternalLink className="w-4 h-4" />
+              <span className="hidden md:inline">Compartilhar</span> <Users className="w-4 h-4" />
             </button>
             <button 
-              onClick={handleSave}
-              disabled={isSaving}
-              className="bg-neutral-900 text-white px-4 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold hover:bg-neutral-800 transition-all flex items-center gap-2 shadow-lg shadow-neutral-900/10 active:scale-95 disabled:opacity-70 disabled:scale-100"
+              onClick={() => window.open(`/${shop.slug}`, '_blank')}
+              className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl text-xs md:text-sm font-bold text-neutral-600 hover:bg-neutral-50 transition-all border border-neutral-200"
             >
-              {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> <span className="hidden md:inline">Salvar Alterações</span></>}
+              <span className="hidden md:inline">Ver Página</span> <ExternalLink className="w-4 h-4" />
             </button>
           </div>
         </header>
@@ -594,13 +623,22 @@ export default function AdminPage() {
                                 </>
                               )}
                               {apt.status === 'confirmed' && (
-                                <button 
-                                  onClick={() => handleCompleteAppointment(apt)}
-                                  className="p-1.5 md:p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all"
-                                  title="Finalizar atendimento"
-                                >
-                                  <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5" />
-                                </button>
+                                <div className="flex gap-2">
+                                  <button 
+                                    onClick={() => handleCompleteAppointment(apt)}
+                                    className="p-1.5 md:p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all"
+                                    title="Finalizar atendimento"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5" />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleCancelAppointment(apt)}
+                                    className="p-1.5 md:p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all"
+                                    title="Cancelar e avisar"
+                                  >
+                                    <XCircle className="w-4 h-4 md:w-5 md:h-5" />
+                                  </button>
+                                </div>
                               )}
                               {hasFeature('whatsapp_reminders') && (
                                 <button 
@@ -631,20 +669,29 @@ export default function AdminPage() {
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <h3 className="text-xl md:text-2xl font-bold">Serviços</h3>
-                  <button 
-                    onClick={() => {
-                      const newService: Service = {
-                        id: Math.random().toString(36).substr(2, 9),
-                        name: 'Novo Serviço',
-                        price: 0,
-                        duration: 30
-                      };
-                      setShop({ ...shop, services: [...(shop.services || []), newService] });
-                    }}
-                    className="flex items-center justify-center gap-2 bg-neutral-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-neutral-800 transition-all w-full sm:w-auto"
-                  >
-                    <Plus className="w-4 h-4" /> Adicionar Serviço
-                  </button>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <button 
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-900/10 active:scale-95 disabled:opacity-70 disabled:scale-100"
+                    >
+                      {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> Salvar</>}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const newService: Service = {
+                          id: Math.random().toString(36).substr(2, 9),
+                          name: 'Novo Serviço',
+                          price: 0,
+                          duration: 30
+                        };
+                        setShop({ ...shop, services: [...(shop.services || []), newService] });
+                      }}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-neutral-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-neutral-800 transition-all"
+                    >
+                      <Plus className="w-4 h-4" /> Adicionar Serviço
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid gap-4">
@@ -722,20 +769,29 @@ export default function AdminPage() {
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <h3 className="text-xl md:text-2xl font-bold">Equipe</h3>
-                  <button 
-                    onClick={() => {
-                      const newBarber: Barber = {
-                        id: Math.random().toString(36).substr(2, 9),
-                        name: 'Novo Barbeiro',
-                        role: 'Barbeiro',
-                        avatar: `https://picsum.photos/seed/${Math.random()}/200`
-                      };
-                      setShop({ ...shop, barbers: [...(shop.barbers || []), newBarber] });
-                    }}
-                    className="flex items-center justify-center gap-2 bg-neutral-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-neutral-800 transition-all w-full sm:w-auto"
-                  >
-                    <Plus className="w-4 h-4" /> Adicionar Barbeiro
-                  </button>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <button 
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-900/10 active:scale-95 disabled:opacity-70 disabled:scale-100"
+                    >
+                      {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> Salvar</>}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const newBarber: Barber = {
+                          id: Math.random().toString(36).substr(2, 9),
+                          name: 'Novo Barbeiro',
+                          role: 'Barbeiro',
+                          avatar: `https://picsum.photos/seed/${Math.random()}/200`
+                        };
+                        setShop({ ...shop, barbers: [...(shop.barbers || []), newBarber] });
+                      }}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-neutral-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-neutral-800 transition-all"
+                    >
+                      <Plus className="w-4 h-4" /> Adicionar Barbeiro
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
@@ -895,7 +951,16 @@ export default function AdminPage() {
                 className="space-y-8"
               >
                 <div className="bg-white p-4 md:p-8 rounded-[2rem] border border-neutral-200 shadow-sm space-y-6">
-                  <h3 className="text-lg md:text-xl font-bold mb-6">Informações Gerais</h3>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg md:text-xl font-bold">Informações Gerais</h3>
+                    <button 
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-md shadow-emerald-900/10"
+                    >
+                      {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> <span className="hidden sm:inline">Salvar</span></>}
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Nome da Barbearia</label>
@@ -951,7 +1016,16 @@ export default function AdminPage() {
                 </div>
 
                 <div className="bg-white p-4 md:p-8 rounded-[2rem] border border-neutral-200 shadow-sm">
-                  <h3 className="text-lg md:text-xl font-bold mb-6">Horário de Funcionamento</h3>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg md:text-xl font-bold">Horário de Funcionamento</h3>
+                    <button 
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-md shadow-emerald-900/10"
+                    >
+                      {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> <span className="hidden sm:inline">Salvar</span></>}
+                    </button>
+                  </div>
                   <div className="space-y-4">
                     {Object.entries(shop.openingHours || {}).map(([day, hours]) => (
                       <div key={day} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-100 gap-4">
@@ -1022,7 +1096,16 @@ export default function AdminPage() {
                 </div>
 
                 <div className="bg-white p-4 md:p-8 rounded-[2rem] border border-neutral-200 shadow-sm">
-                  <h3 className="text-lg md:text-xl font-bold mb-6">Acesso Administrativo</h3>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg md:text-xl font-bold">Acesso Administrativo</h3>
+                    <button 
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-md shadow-emerald-900/10"
+                    >
+                      {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> <span className="hidden sm:inline">Salvar</span></>}
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-neutral-400 uppercase ml-1">E-mail do Administrador</label>
@@ -1071,21 +1154,87 @@ export default function AdminPage() {
                       </Link>
                     </div>
                   )}
-                  <h3 className="text-xl font-bold mb-6">Imagem de Capa</h3>
-                  <div className="relative h-48 w-full rounded-2xl overflow-hidden border border-neutral-100 mb-4">
-                    <img src={shop.banner} alt="Banner" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-all cursor-pointer">
-                      <span className="text-white font-bold text-sm bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">Alterar Imagem</span>
-                    </div>
+                  
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xl font-bold">Logotipo</h3>
+                    <button 
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-md shadow-emerald-900/10"
+                    >
+                      {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> <span className="hidden sm:inline">Salvar</span></>}
+                    </button>
                   </div>
-                  <input 
-                    type="text" 
-                    value={shop.banner}
-                    onChange={(e) => setShop({ ...shop, banner: e.target.value })}
-                    placeholder="URL da imagem de capa"
-                    className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all text-xs font-mono"
-                    disabled={!hasFeature('page_customization')}
-                  />
+                  <p className="text-neutral-400 text-xs mb-6">Recomendado: 500x500px (Máx. 5MB)</p>
+                  
+                  <div className="relative h-32 w-32 rounded-[2rem] overflow-hidden border border-neutral-100 mb-4 bg-neutral-50 flex flex-col items-center justify-center mx-auto shadow-sm">
+                    {shop.logo ? (
+                      <img src={shop.logo} alt="Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="w-10 h-10 text-neutral-300 mb-1" />
+                    )}
+                    <label className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-all cursor-pointer backdrop-blur-[2px]">
+                      <Upload className="w-6 h-6 text-white mb-1" />
+                      <span className="text-white font-bold text-[10px] uppercase tracking-wider bg-black/40 px-2 py-1 rounded-full">Alterar</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        disabled={!hasFeature('page_customization')}
+                        className="hidden" 
+                        onChange={(e) => handleImageUpload(e, 'logo')} 
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[2rem] border border-neutral-200 shadow-sm relative overflow-hidden">
+                  {!hasFeature('page_customization') && (
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6 text-center">
+                      <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                        <Star className="text-amber-600 w-6 h-6" />
+                      </div>
+                      <h4 className="text-lg font-bold mb-2">Funcionalidade Premium</h4>
+                      <p className="text-neutral-500 text-sm mb-4 max-w-sm">
+                        A personalização da página está disponível apenas no Plano Profissional.
+                      </p>
+                      <Link 
+                        href={`/${slug}/admin/subscription`}
+                        className="bg-neutral-900 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-neutral-800 transition-all"
+                      >
+                        Fazer Upgrade
+                      </Link>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xl font-bold">Imagem de Capa</h3>
+                    <button 
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-md shadow-emerald-900/10"
+                    >
+                      {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> <span className="hidden sm:inline">Salvar</span></>}
+                    </button>
+                  </div>
+                  <p className="text-neutral-400 text-xs mb-6">Recomendado: 1920x1080px (Máx. 5MB)</p>
+
+                  <div className="relative h-48 w-full rounded-2xl overflow-hidden border border-neutral-100 mb-4 bg-neutral-50 flex flex-col items-center justify-center">
+                    {shop.banner ? (
+                       <img src={shop.banner} alt="Banner" className="w-full h-full object-cover" />
+                    ) : (
+                       <ImageIcon className="w-10 h-10 text-neutral-300 mb-2" />
+                    )}
+                    <label className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-all cursor-pointer backdrop-blur-[2px]">
+                      <Upload className="w-8 h-8 text-white mb-2" />
+                      <span className="text-white font-bold text-sm uppercase tracking-wider bg-black/40 px-4 py-2 rounded-full">Alterar Capa</span>
+                      <input 
+                         type="file" 
+                         accept="image/*" 
+                         disabled={!hasFeature('page_customization')}
+                         className="hidden" 
+                         onChange={(e) => handleImageUpload(e, 'banner')} 
+                      />
+                    </label>
+                  </div>
                 </div>
               </motion.div>
             )}

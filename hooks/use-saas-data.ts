@@ -275,7 +275,7 @@ export function useSaaSData() {
           return newTicket;
         } else {
           const errData = await res.json();
-          return { error: errData.details || errData.error || 'Erro ao criar chamado na API' };
+          return { error: errData.message || errData.details || errData.error || 'Erro ao criar chamado na API' };
         }
       } catch (error: any) {
         console.error('Error creating ticket:', error);
