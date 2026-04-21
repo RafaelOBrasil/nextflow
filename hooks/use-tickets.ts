@@ -44,26 +44,30 @@ export function useTickets(shopId?: string) {
     }
   }, []);
 
-  const createTicket = useCallback(async (data: { subject: string, description: string, priority?: string, category?: string, shopId?: string }) => {
-    try {
-      const token = localStorage.getItem('barber_auth_token');
-      const res = await fetch('/api/tickets', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-      });
-      if (res.ok) {
-        const newTicket = await res.json();
-        setTickets(prev => [newTicket, ...prev]);
-        return newTicket;
+    const createTicket = useCallback(async (data: { subject: string, description: string, priority?: string, category?: string, shopId?: string }) => {
+      try {
+        const token = localStorage.getItem('barber_auth_token');
+        const res = await fetch('/api/tickets', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(data)
+        });
+        if (res.ok) {
+          const newTicket = await res.json();
+          setTickets(prev => [newTicket, ...prev]);
+          return newTicket;
+        } else {
+          const errData = await res.json();
+          return { error: errData.details || errData.error || 'Erro ao criar chamado na API' };
+        }
+      } catch (error: any) {
+        console.error('Error creating ticket:', error);
+        return { error: error.message || 'Erro de conexão' };
       }
-    } catch (error) {
-      console.error('Error creating ticket:', error);
-    }
-  }, []);
+    }, []);
 
   const addMessage = useCallback(async (ticketId: string, content: string) => {
     try {

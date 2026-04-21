@@ -27,9 +27,11 @@ export default function LoginPage() {
         if (data.user?.shop?.slug) {
           localStorage.setItem(`admin_session_${data.user.shop.slug}`, 'true');
           localStorage.setItem('auth_token', data.token);
+          localStorage.setItem('barber_auth_token', data.token); // Add this
           router.push(`/${data.user.shop.slug}/admin`);
         } else if (data.user?.role === 'SAAS_ADMIN') {
           localStorage.setItem('auth_token', data.token);
+          localStorage.setItem('barber_auth_token', data.token); // Add this
           router.push('/admin/saas');
         } else {
           setError('Usuário sem loja associada.');

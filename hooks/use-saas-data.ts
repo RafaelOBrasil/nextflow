@@ -273,9 +273,13 @@ export function useSaaSData() {
           const newTicket = await res.json();
           setTickets(prev => [newTicket, ...prev]);
           return newTicket;
+        } else {
+          const errData = await res.json();
+          return { error: errData.details || errData.error || 'Erro ao criar chamado na API' };
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error creating ticket:', error);
+        return { error: error.message || 'Erro de conexão' };
       }
     }
   };

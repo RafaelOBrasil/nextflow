@@ -159,9 +159,6 @@ export default function AdminPage() {
   const handleLogout = () => {
     setIsLoggedIn(false);
     localStorage.removeItem(`admin_session_${slug}`);
-    localStorage.removeItem(`admin_token_${slug}`);
-    localStorage.removeItem('barber_auth_token');
-    router.push(`/${slug}/admin`);
   };
 
   const currentPlan = shop ? (plans.find(p => p.id === shop.planId) || plans[0]) : null;

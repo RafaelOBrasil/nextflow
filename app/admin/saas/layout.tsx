@@ -80,7 +80,6 @@ export default function SaaSAdminLayout({ children }: { children: React.ReactNod
     setIsLoggedIn(false);
     localStorage.removeItem('saas_admin_token');
     localStorage.removeItem('saas_admin_user');
-    localStorage.removeItem('barber_auth_token');
     router.push('/');
   };
 

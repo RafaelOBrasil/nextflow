@@ -32,10 +32,9 @@ export async function GET(request: Request) {
     } else {
       // Regular Shop Admin can ONLY see their own shop's tickets
       if (!user.shopId) {
-        return NextResponse.json([]);
+        return NextResponse.json({ error: 'User is not associated with a shop' }, { status: 403 });
       }
 
-      // Even if they try to pass a different shopId in query, we force their own shopId
       tickets = await prisma.ticket.findMany({
         where: { shopId: user.shopId },
         include: {
@@ -69,22 +68,17 @@ export async function POST(request: Request) {
     }
 
     // Determine targetShopId: 
-    // If SAAS_ADMIN, use the shopId from payload if provided (ignoring empty strings).
-    // Otherwise, default to user.shopId.
+    // If SAAS_ADMIN, use the shopId from payload.
+    // Otherwise, always force the logged-in user's shopId to prevent spoofing.
     const targetShopId = (user.role === 'SAAS_ADMIN' && typeof shopId === 'string' && shopId.trim() !== '') 
       ? shopId 
       : user.shopId;
 
     if (!targetShopId) {
-      console.error('Ticket creation 400: targetShopId missing', {
-        role: user.role,
-        bodyShopId: shopId,
-        userShopId: user.shopId
-      });
       return NextResponse.json({ 
         error: 'Missing shopId',
         details: user.role === 'SAAS_ADMIN' 
-          ? 'SAAS_ADMIN deve selecionar uma barbearia alvo.' 
+          ? 'Administradores SaaS devem selecionar uma barbearia para o chamado.' 
           : 'Seu usuário não está vinculado a uma barbearia.'
       }, { status: 400 });
     }

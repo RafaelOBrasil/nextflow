@@ -68,14 +68,13 @@ export async function PUT(
     }
 
     // Only admin can change status/priority of any ticket
-    // Shop owner can only close their own ticket
+    // Shop owner can manage their own ticket (including reopening or setting to in progress if they want)
     if (user.role !== 'SAAS_ADMIN') {
       if (ticket.shopId !== user.shopId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
-      if (status && status !== 'closed') {
-        return NextResponse.json({ error: 'Shop owners can only close tickets' }, { status: 403 });
-      }
+      // Removed the restriction that shop owners can only close tickets 
+      // so they can reopen or set them to in progress.
     }
 
     const updatedTicket = await prisma.ticket.update({

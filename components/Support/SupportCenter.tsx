@@ -38,7 +38,6 @@ export default function SupportCenter({
   isAdmin = false,
   shops = []
 }: SupportCenterProps) {
-  const [mounted, setMounted] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newMessage, setNewMessage] = useState('');
@@ -51,10 +50,6 @@ export default function SupportCenter({
   });
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const selectedTicket = tickets.find(t => t.id === selectedTicketId);
 
@@ -102,21 +97,21 @@ export default function SupportCenter({
       };
 
       const created = await onCreateTicket(payload);
-      if (created) {
+      if (created && !created.error) {
         setIsCreating(false);
         setNewTicket({ subject: '', description: '', priority: 'medium', category: 'support', shopId: '' });
         setSelectedTicketId(created.id);
       } else {
-        setError('Erro ao criar chamado. Verifique os dados e tente novamente.');
+        setError(created?.error || 'Erro ao criar chamado. Verifique os dados e tente novamente.');
       }
-    } catch (err) {
-      setError('Erro ao processar requisição.');
+    } catch (err: any) {
+      setError(err.message || 'Erro ao processar requisição.');
     } finally {
       setIsSending(false);
     }
   };
 
-  if (!mounted || loading) return (
+  if (loading) return (
     <div className="flex items-center justify-center p-20">
       <div className="w-8 h-8 border-4 border-neutral-900 border-t-transparent rounded-full animate-spin"></div>
     </div>

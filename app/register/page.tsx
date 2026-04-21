@@ -134,14 +134,35 @@ function RegisterForm() {
       }
     };
 
+    const autoLogin = async () => {
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: formData.email, password: formData.password })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem(`admin_session_${slug}`, 'true');
+          localStorage.setItem('auth_token', data.token);
+          localStorage.setItem('barber_auth_token', data.token);
+        } else {
+          localStorage.setItem(`admin_session_${slug}`, 'true');
+        }
+      } catch (err) {
+        localStorage.setItem(`admin_session_${slug}`, 'true');
+      }
+    };
+
     if (selectedPlan.price === 0) {
       await addShop(newShop);
-      localStorage.setItem(`admin_session_${slug}`, 'true');
+      await autoLogin();
       router.push(`/${slug}/admin`);
     } else {
       // Payment flow
       try {
         await addShop(newShop);
+        await autoLogin();
         const res = await fetch('/api/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
