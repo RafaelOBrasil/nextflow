@@ -290,7 +290,7 @@ export default function ShopView({ shop }: ShopViewProps) {
         <img 
           src={shop.banner || 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=2074&auto=format&fit=crop'} 
           alt={shop.name}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover object-top"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-transparent" />
       </div>
