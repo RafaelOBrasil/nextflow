@@ -32,6 +32,24 @@ export async function POST(request: Request) {
       }, { status: 403 });
     }
 
+    // Check for existing appointment at same date, time, and barber
+    const existingAppointment = await prisma.appointment.findFirst({
+      where: {
+        shopId,
+        date,
+        time,
+        barberId,
+        status: { not: 'cancelled' }
+      }
+    });
+
+    if (existingAppointment) {
+      return NextResponse.json({ 
+        error: 'Slot already taken', 
+        message: 'Este horário já foi agendado com este barbeiro. Por favor, escolha outro horário.' 
+      }, { status: 400 });
+    }
+
     // Create appointment if checks pass
     const appointment = await prisma.appointment.create({
       data: {

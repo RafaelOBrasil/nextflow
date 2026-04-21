@@ -78,6 +78,7 @@ model Service {
   price       Float
   duration    Int
   description String?
+  active      Boolean  @default(true)
   shopId      String
   shop        BarberShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
   appointments Appointment[]
@@ -88,6 +89,7 @@ model Barber {
   name        String
   role        String
   avatar      String?
+  active      Boolean  @default(true)
   shopId      String
   shop        BarberShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
   appointments Appointment[]

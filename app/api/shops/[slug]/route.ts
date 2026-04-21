@@ -129,8 +129,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
       updateData.services = {
         upsert: body.services.map((s: any) => ({
           where: { id: s.id },
-          update: { name: s.name, price: s.price, duration: s.duration, description: s.description },
-          create: { id: s.id, name: s.name, price: s.price, duration: s.duration, description: s.description }
+          update: { name: s.name, price: s.price, duration: s.duration, description: s.description, active: s.active },
+          create: { id: s.id, name: s.name, price: s.price, duration: s.duration, description: s.description, active: s.active }
         }))
       };
     }
@@ -151,8 +151,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
       updateData.barbers = {
         upsert: body.barbers.map((b: any) => ({
           where: { id: b.id },
-          update: { name: b.name, role: b.role, avatar: b.avatar },
-          create: { id: b.id, name: b.name, role: b.role, avatar: b.avatar }
+          update: { name: b.name, role: b.role, avatar: b.avatar, active: b.active },
+          create: { id: b.id, name: b.name, role: b.role, avatar: b.avatar, active: b.active }
         }))
       };
     }

@@ -417,7 +417,7 @@ export default function AdminPage() {
             <div className="w-8 h-8 bg-neutral-900 rounded-lg flex items-center justify-center">
               <Scissors className="text-white w-5 h-5" />
             </div>
-            <span className="font-bold text-lg tracking-tight">Next Flow Barber</span>
+            <span className="font-bold text-lg tracking-tight">BarberFlow</span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden p-2 hover:bg-neutral-100 rounded-lg">
             <X className="w-6 h-6" />
@@ -700,7 +700,9 @@ export default function AdminPage() {
                       <div className="flex-1 space-y-4">
                         <div className="grid md:grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Nome do Serviço</label>
+                            <label className="text-xs font-bold text-neutral-400 uppercase ml-1">
+                              Nome do Serviço {service.active === false && <span className="text-amber-500 ml-2">(Desativado)</span>}
+                            </label>
                             <input 
                               type="text" 
                               value={service.name}
@@ -709,7 +711,7 @@ export default function AdminPage() {
                                 newServices[index].name = e.target.value;
                                 setShop({ ...shop, services: newServices });
                               }}
-                              className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold"
+                              className={`w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold ${service.active === false ? 'opacity-60 grayscale' : ''}`}
                             />
                           </div>
                           <div className="grid grid-cols-2 gap-4">
@@ -745,12 +747,24 @@ export default function AdminPage() {
                       <div className="flex items-end">
                         <button 
                           onClick={() => {
-                            const newServices = (shop.services || []).filter(s => s.id !== service.id);
-                            setShop({ ...shop, services: newServices });
+                            const isAssociated = (shop.appointments || []).some(a => a.serviceId === service.id);
+                            if (isAssociated) {
+                              setShop({ ...shop, services: (shop.services || []).map(s => s.id === service.id ? { ...s, active: !s.active } : s) });
+                            } else {
+                              const newServices = (shop.services || []).filter(s => s.id !== service.id);
+                              setShop({ ...shop, services: newServices });
+                            }
                           }}
-                          className="p-3 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                          className={`p-3 rounded-xl transition-all ${
+                            (shop.appointments || []).some(a => a.serviceId === service.id)
+                              ? service.active === false ? 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50' : 'text-amber-500 hover:text-amber-600 hover:bg-amber-50'
+                              : 'text-red-400 hover:text-red-500 hover:bg-red-50'
+                          }`}
+                          title={(shop.appointments || []).some(a => a.serviceId === service.id) ? (service.active === false ? 'Ativar serviço' : 'Desativar serviço (em uso)') : 'Excluir serviço'}
                         >
-                          <Trash2 className="w-5 h-5" />
+                          {(shop.appointments || []).some(a => a.serviceId === service.id) 
+                            ? (service.active === false ? <CheckCircle2 className="w-5 h-5"/> : <Lock className="w-5 h-5"/>)
+                            : <Trash2 className="w-5 h-5" />}
                         </button>
                       </div>
                     </div>
@@ -797,11 +811,15 @@ export default function AdminPage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   {(shop.barbers || []).map((barber, index) => (
                     <div key={barber.id} className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm flex items-start gap-4">
-                      <div className="w-20 h-20 rounded-2xl overflow-hidden border border-neutral-100 flex-shrink-0">
+                      <div className={`w-20 h-20 rounded-2xl overflow-hidden border border-neutral-100 flex-shrink-0 ${barber.active === false ? 'grayscale opacity-60' : ''}`}>
                         <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 space-y-3">
                         <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-bold text-neutral-400 uppercase">Nome</label>
+                            {barber.active === false && <span className="text-[10px] font-bold text-amber-500 uppercase">Desativado</span>}
+                          </div>
                           <input 
                             type="text" 
                             value={barber.name}
@@ -810,7 +828,7 @@ export default function AdminPage() {
                               newBarbers[index].name = e.target.value;
                               setShop({ ...shop, barbers: newBarbers });
                             }}
-                            className="w-full px-3 py-2 rounded-lg bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold text-lg"
+                            className={`w-full px-3 py-2 rounded-lg bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold text-lg ${barber.active === false ? 'opacity-60 grayscale' : ''}`}
                           />
                           <input 
                             type="text" 
@@ -825,12 +843,25 @@ export default function AdminPage() {
                         </div>
                         <button 
                           onClick={() => {
-                            const newBarbers = (shop.barbers || []).filter(b => b.id !== barber.id);
-                            setShop({ ...shop, barbers: newBarbers });
+                            const isAssociated = (shop.appointments || []).some(a => a.barberId === barber.id);
+                            if (isAssociated) {
+                              setShop({ ...shop, barbers: (shop.barbers || []).map(b => b.id === barber.id ? { ...b, active: !b.active } : b) });
+                            } else {
+                              const newBarbers = (shop.barbers || []).filter(b => b.id !== barber.id);
+                              setShop({ ...shop, barbers: newBarbers });
+                            }
                           }}
-                          className="flex items-center gap-1.5 text-xs font-bold text-red-400 hover:text-red-500 transition-all"
+                          className={`flex items-center gap-1.5 text-xs font-bold transition-all ${
+                            (shop.appointments || []).some(a => a.barberId === barber.id)
+                              ? barber.active === false ? 'text-emerald-500 hover:text-emerald-600' : 'text-amber-500 hover:text-amber-600'
+                              : 'text-red-400 hover:text-red-500'
+                          }`}
+                          title={(shop.appointments || []).some(a => a.barberId === barber.id) ? (barber.active === false ? 'Ativar barbeiro' : 'Desativar barbeiro (em uso)') : 'Remover da Equipe'}
                         >
-                          <Trash2 className="w-3.5 h-3.5" /> Remover da Equipe
+                          {(shop.appointments || []).some(a => a.barberId === barber.id) 
+                            ? (barber.active === false ? <CheckCircle2 className="w-3.5 h-3.5"/> : <Lock className="w-3.5 h-3.5"/>) 
+                            : <Trash2 className="w-3.5 h-3.5" />}
+                          {(shop.appointments || []).some(a => a.barberId === barber.id) ? (barber.active === false ? 'Ativar' : 'Desativar') : 'Remover da Equipe'}
                         </button>
                       </div>
                     </div>

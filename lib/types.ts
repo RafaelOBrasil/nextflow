@@ -4,6 +4,7 @@ export interface Service {
   price: number;
   duration: number;
   description?: string;
+  active?: boolean;
 }
 
 export interface Barber {
@@ -11,6 +12,7 @@ export interface Barber {
   name: string;
   role: string;
   avatar: string;
+  active?: boolean;
 }
 
 export interface Customer {

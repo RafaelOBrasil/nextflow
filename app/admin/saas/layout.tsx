@@ -187,7 +187,7 @@ export default function SaaSAdminLayout({ children }: { children: React.ReactNod
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
               <Scissors className="text-neutral-900 w-6 h-6" />
             </div>
-            <span className="font-bold text-xl tracking-tight">Next Flow Barber <span className="text-[10px] bg-neutral-800 px-2 py-0.5 rounded-full text-neutral-400">SaaS</span></span>
+            <span className="font-bold text-xl tracking-tight">BarberFlow <span className="text-[10px] bg-neutral-800 px-2 py-0.5 rounded-full text-neutral-400">SaaS</span></span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden p-2 hover:bg-neutral-800 rounded-lg">
             <X className="w-6 h-6" />

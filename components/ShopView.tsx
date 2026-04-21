@@ -25,6 +25,7 @@ export default function ShopView({ shop }: ShopViewProps) {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '' });
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginStep, setLoginStep] = useState<'phone' | 'name'>('phone');
   const [activeTab, setActiveTab] = useState<'services' | 'appointments'>('services');
@@ -165,7 +166,7 @@ export default function ShopView({ shop }: ShopViewProps) {
         </p>
         <div className="mt-12 flex items-center gap-2 text-neutral-300">
           <Scissors className="w-5 h-5" />
-          <span className="font-bold tracking-widest text-xs uppercase">Next Flow Barber</span>
+          <span className="font-bold tracking-widest text-xs uppercase">BarberFlow</span>
         </div>
       </div>
     );
@@ -178,7 +179,7 @@ export default function ShopView({ shop }: ShopViewProps) {
     return aptDate.getMonth() === now.getMonth() && aptDate.getFullYear() === now.getFullYear();
   }).length;
 
-  const handleBooking = () => {
+  const handleBooking = async () => {
     if (!selectedService || !selectedBarber || !selectedDate || !selectedTime || !customerInfo.name) return;
 
     if (currentPlan.maxAppointments !== null && currentMonthAppointments >= currentPlan.maxAppointments) {
@@ -198,9 +199,16 @@ export default function ShopView({ shop }: ShopViewProps) {
       status: 'pending'
     };
 
-    addAppointment(shop.slug, newAppointment);
-    saveToRecentShops();
-    setIsSuccess(true);
+    try {
+      setIsBooking(true);
+      await addAppointment(shop.slug, newAppointment);
+      saveToRecentShops();
+      setIsSuccess(true);
+    } catch (error: any) {
+      alert(error.message || 'Erro ao realizar agendamento. Por favor, tente novamente.');
+    } finally {
+      setIsBooking(false);
+    }
   };
 
   const handleReviewSubmit = () => {
@@ -290,7 +298,7 @@ export default function ShopView({ shop }: ShopViewProps) {
         <img 
           src={shop.banner || 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=2074&auto=format&fit=crop'} 
           alt={shop.name}
-          className="w-full h-full object-cover object-top"
+          className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-transparent" />
       </div>
@@ -516,7 +524,7 @@ export default function ShopView({ shop }: ShopViewProps) {
 
             {step === 1 && (
               <div className="grid gap-3">
-                {shop.services.map((service) => (
+                {(shop.services || []).filter(s => s.active !== false).map((service) => (
                   <button
                     key={service.id}
                     onClick={() => {
@@ -561,7 +569,7 @@ export default function ShopView({ shop }: ShopViewProps) {
 
             {step === 2 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
-                {shop.barbers.map((barber) => (
+                {(shop.barbers || []).filter(b => b.active !== false).map((barber) => (
                   <button
                     key={barber.id}
                     onClick={() => {
@@ -588,6 +596,7 @@ export default function ShopView({ shop }: ShopViewProps) {
               </div>
             )}
           </div>
+
 
           {/* Step 3: Date & Time */}
           <div className={`bg-white rounded-3xl border ${step === 3 ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-100'} p-6 transition-all`}>
@@ -685,18 +694,36 @@ export default function ShopView({ shop }: ShopViewProps) {
                         return <p className="col-span-full text-center py-4 text-neutral-400 text-sm italic">Não há horários disponíveis para este dia.</p>;
                       }
 
-                      return slots.map((time) => (
-                        <button
-                          key={time}
-                          onClick={() => {
-                            setSelectedTime(time);
-                            setStep(4);
-                          }}
-                          className={`py-3 rounded-xl border text-sm font-bold transition-all ${selectedTime === time ? 'bg-neutral-900 border-neutral-900 text-white' : 'border-neutral-100 hover:border-neutral-900'}`}
-                        >
-                          {time}
-                        </button>
-                      ));
+                      // Get existing appointments for the selected date and barber
+                      const takenSlots = (shop.appointments || [])
+                        .filter(apt => apt.date === selectedDate && apt.barberId === selectedBarber?.id && apt.status !== 'cancelled')
+                        .map(apt => apt.time);
+
+                      return slots.map((time) => {
+                        const isTaken = takenSlots.includes(time);
+                        
+                        return (
+                          <button
+                            key={time}
+                            disabled={isTaken}
+                            onClick={() => {
+                              if (!isTaken) {
+                                setSelectedTime(time);
+                                setStep(4);
+                              }
+                            }}
+                            className={`py-3 rounded-xl border text-sm font-bold transition-all ${
+                              selectedTime === time 
+                                ? 'bg-neutral-900 border-neutral-900 text-white' 
+                                : isTaken
+                                  ? 'bg-neutral-50 border-neutral-100 text-neutral-300 cursor-not-allowed line-through'
+                                  : 'border-neutral-100 hover:border-neutral-900'
+                            }`}
+                          >
+                            {time}
+                          </button>
+                        );
+                      });
                     })()}
                   </div>
                 )}
@@ -738,9 +765,10 @@ export default function ShopView({ shop }: ShopViewProps) {
                 
                 <button 
                   onClick={handleBooking}
-                  className="w-full bg-neutral-900 text-white py-5 rounded-2xl font-bold hover:bg-neutral-800 transition-all shadow-lg active:scale-95"
+                  disabled={isBooking}
+                  className="w-full bg-neutral-900 text-white py-5 rounded-2xl font-bold hover:bg-neutral-800 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Finalizar Agendamento
+                  {isBooking ? 'Agendando...' : 'Finalizar Agendamento'}
                 </button>
               </div>
             )}

@@ -9,7 +9,7 @@ const MOCK_SHOP: BarberShop = {
   id: 'demo-shop',
   slug: 'demo',
   name: 'Barbearia Demo',
-  description: 'Esta é uma demonstração do sistema Next Flow Barber. Aqui você pode testar todas as funcionalidades de agendamento sem afetar dados reais.',
+  description: 'Esta é uma demonstração do sistema BarberFlow. Aqui você pode testar todas as funcionalidades de agendamento sem afetar dados reais.',
   address: 'Avenida das Demonstrações, 999 - Tech City',
   phone: '(11) 98888-8888',
   banner: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=2070&auto=format&fit=crop',
