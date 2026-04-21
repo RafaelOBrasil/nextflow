@@ -55,7 +55,7 @@ export default function LoginPage() {
           <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center">
             <Scissors className="text-white w-6 h-6" />
           </div>
-          <span className="font-bold text-xl tracking-tight">BarberFlow</span>
+          <span className="font-bold text-xl tracking-tight">Next Flow Barber</span>
         </div>
         <h2 className="text-2xl font-bold mb-2 text-center">Login do Estabelecimento</h2>
         <p className="text-neutral-500 mb-8 text-center">Acesse o painel administrativo da sua barbearia.</p>

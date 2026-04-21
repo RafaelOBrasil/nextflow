@@ -166,7 +166,7 @@ export default function ShopView({ shop }: ShopViewProps) {
         </p>
         <div className="mt-12 flex items-center gap-2 text-neutral-300">
           <Scissors className="w-5 h-5" />
-          <span className="font-bold tracking-widest text-xs uppercase">BarberFlow</span>
+          <span className="font-bold tracking-widest text-xs uppercase">Next Flow Barber</span>
         </div>
       </div>
     );

@@ -203,7 +203,7 @@ export default function SupportCenter({
                   <div className={`space-y-1 max-w-[80%] ${msg.isAdmin ? 'text-right' : ''}`}>
                     <div className={`flex items-center gap-2 ${msg.isAdmin ? 'flex-row-reverse' : ''}`}>
                       <span className="font-bold text-sm">
-                        {msg.isAdmin ? 'Suporte BarberFlow' : selectedTicket?.shop?.name || msg.user?.name || 'Cliente'}
+                        {msg.isAdmin ? 'Suporte Next Flow Barber' : selectedTicket?.shop?.name || msg.user?.name || 'Cliente'}
                       </span>
                       <span className="text-[10px] text-neutral-400">{new Date(msg.createdAt).toLocaleString()}</span>
                     </div>
