@@ -1,5 +1,5 @@
 {
-  "name": "BarberFlow",
+  "name": "NextFlowBarber",
   "description": "Plataforma de agendamento para barbearias com controle de planos, limites de agendamento e notificações de expiração.",
   "requestFramePermissions": [
     "geolocation"
