@@ -450,6 +450,10 @@ export default function AdminPage() {
     );
   }
 
+  function handleContactCustomer(apt: Appointment): void {
+    throw new Error('Function not implemented.');
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50 flex font-sans">
       {/* Mobile Menu Overlay */}
