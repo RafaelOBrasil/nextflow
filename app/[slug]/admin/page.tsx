@@ -40,7 +40,7 @@ import SupportCenter from '@/components/Support/SupportCenter';
 export default function AdminPage() {
   const params = useParams();
   const slug = (params?.slug as string) || '';
-  const { getShopBySlug, fetchShopBySlug, updateShop, shops, loading, updateAppointmentStatus } = useBarberData();
+  const { getShopBySlug, fetchShopBySlug, updateShop, shops, loading, updateAppointmentStatus, addAppointment } = useBarberData();
   const { plans } = usePlans();
   const shopInstance = getShopBySlug(slug);
   const { tickets, loading: ticketsLoading, createTicket, addMessage, closeTicket, fetchTicket } = useTickets(shopInstance?.id);
@@ -53,6 +53,17 @@ export default function AdminPage() {
   const [shopLoading, setShopLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showExpiredModal, setShowExpiredModal] = useState(false);
+  const [appointmentFilter, setAppointmentFilter] = useState<'pending_confirmed' | 'completed' | 'cancelled'>('pending_confirmed');
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [adminBookingData, setAdminBookingData] = useState({
+    customerName: '',
+    customerPhone: '',
+    serviceId: '',
+    barberId: '',
+    date: new Date().toISOString().split('T')[0],
+    time: ''
+  });
+  const [isBookingManual, setIsBookingManual] = useState(false);
   
   // Login state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -231,9 +242,96 @@ export default function AdminPage() {
     sendWhatsAppMessage(apt.customerPhone, message);
   };
 
-  const handleContactCustomer = (apt: Appointment) => {
-    const message = `Olá ${apt.customerName}, tudo bem? Estou entrando em contato sobre seu agendamento na ${shop?.name}.`;
-    sendWhatsAppMessage(apt.customerPhone, message);
+  const handleAdminBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shop || !adminBookingData.serviceId || !adminBookingData.barberId || !adminBookingData.date || !adminBookingData.time || !adminBookingData.customerName) {
+      alert('Preencha todos os campos obrigatórios.');
+      return;
+    }
+
+    setIsBookingManual(true);
+    const newAppointment: Appointment = {
+      id: Math.random().toString(36).substr(2, 9),
+      shopId: shop.id,
+      customerName: adminBookingData.customerName,
+      customerPhone: adminBookingData.customerPhone,
+      serviceId: adminBookingData.serviceId,
+      barberId: adminBookingData.barberId,
+      date: adminBookingData.date,
+      time: adminBookingData.time,
+      status: 'confirmed' // Admin bookings are confirmed by default
+    };
+
+    try {
+      await addAppointment(shop.slug, newAppointment);
+      setIsBookingModalOpen(false);
+      setAdminBookingData({
+        customerName: '',
+        customerPhone: '',
+        serviceId: '',
+        barberId: '',
+        date: new Date().toISOString().split('T')[0],
+        time: ''
+      });
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (error: any) {
+      alert(error.message || 'Erro ao realizar agendamento.');
+    } finally {
+      setIsBookingManual(false);
+    }
+  };
+
+  const filteredAppointments = (shop?.appointments || []).filter(apt => {
+    if (appointmentFilter === 'pending_confirmed') return apt.status === 'pending' || apt.status === 'confirmed';
+    if (appointmentFilter === 'completed') return apt.status === 'completed';
+    if (appointmentFilter === 'cancelled') return apt.status === 'cancelled';
+    return true;
+  }).sort((a, b) => {
+    // Sort by date and time
+    const dateComp = b.date.localeCompare(a.date);
+    if (dateComp !== 0) return dateComp;
+    return b.time.localeCompare(a.time);
+  });
+
+  const generateTimeSlots = (dateStr: string) => {
+    if (!shop || !shop.openingHours) return [];
+    
+    const date = new Date(dateStr + 'T00:00:00');
+    const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayKey = dayKeys[date.getDay()];
+    const hours = (shop.openingHours || {})[dayKey];
+    
+    if (!hours || hours.closed) return [];
+
+    const slots: string[] = [];
+    let current = hours.open;
+    const end = hours.close;
+    const [endH, endM] = end.split(':').map(Number);
+    
+    while (true) {
+      const [currH, currM] = current.split(':').map(Number);
+      if (currH > endH || (currH === endH && currM >= endM)) break;
+      slots.push(current);
+      
+      let nextM = currM + 30;
+      let nextH = currH;
+      if (nextM >= 60) {
+        nextH++;
+        nextM -= 60;
+      }
+      current = `${nextH.toString().padStart(2, '0')}:${nextM.toString().padStart(2, '0')}`;
+    }
+    return slots;
+  };
+
+  const isSlotOccupied = (date: string, time: string, barberId: string) => {
+    return (shop?.appointments || []).some(apt => 
+      apt.date === date && 
+      apt.time === time && 
+      apt.barberId === barberId && 
+      apt.status !== 'cancelled'
+    );
   };
 
   if (!mounted || shopLoading) {
@@ -558,22 +656,104 @@ export default function AdminPage() {
                   </div>
                 </div>
 
+                {/* Daily Agenda View */}
+                <div className="bg-white rounded-[2rem] border border-neutral-200 shadow-sm p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="space-y-1">
+                      <h3 className="font-bold text-lg">Agenda do Dia</h3>
+                      <p className="text-xs text-neutral-400 font-medium font-mono uppercase tracking-wider">{adminBookingData.date}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <input 
+                        type="date"
+                        value={adminBookingData.date}
+                        onChange={(e) => setAdminBookingData({ ...adminBookingData, date: e.target.value })}
+                        className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-100 font-bold text-xs focus:outline-none focus:border-neutral-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                    {generateTimeSlots(adminBookingData.date).map(slot => {
+                      const appointmentsInSlot = (shop?.appointments || []).filter(a => a.date === adminBookingData.date && a.time === slot && a.status !== 'cancelled');
+                      const isBooked = appointmentsInSlot.length > 0;
+                      
+                      return (
+                        <div 
+                          key={slot}
+                          className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center gap-1.5 transition-all ${
+                            isBooked 
+                              ? 'bg-neutral-900 border-neutral-900 text-white shadow-md' 
+                              : 'bg-neutral-50 border-neutral-100 text-neutral-400 opacity-60'
+                          }`}
+                        >
+                          <span className="text-xs font-bold font-mono">{slot}</span>
+                          {isBooked ? (
+                            <div className="flex flex-col gap-0.5">
+                              {appointmentsInSlot.map(a => (
+                                <span key={a.id} className="text-[8px] font-bold truncate max-w-[80px] opacity-80" title={a.customerName}>
+                                  {a.customerName.split(' ')[0]}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-[8px] font-bold uppercase tracking-widest">Livre</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* Recent Appointments */}
                 <div className="bg-white rounded-[2rem] border border-neutral-200 shadow-sm overflow-hidden">
-                  <div className="p-6 border-b border-neutral-100 flex items-center justify-between">
-                    <h3 className="font-bold text-lg">Agendamentos Recentes</h3>
-                    <button className="text-sm font-bold text-neutral-400 hover:text-neutral-900 transition-all">Ver todos</button>
+                  <div className="p-6 border-b border-neutral-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h3 className="font-bold text-lg">Agendamentos Recentes</h3>
+                      <p className="text-xs text-neutral-400 font-medium">Gerencie o fluxo de clientes da sua barbearia</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                       <button 
+                        onClick={() => setIsBookingModalOpen(true)}
+                        className="flex items-center gap-2 bg-neutral-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-neutral-800 transition-all shadow-lg active:scale-95"
+                      >
+                        <Plus className="w-4 h-4" /> Novo Agendamento
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Filter Tabs */}
+                  <div className="px-6 py-2 bg-neutral-50/50 border-b border-neutral-100 flex gap-2 overflow-x-auto no-scrollbar">
+                    <button 
+                      onClick={() => setAppointmentFilter('pending_confirmed')}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${appointmentFilter === 'pending_confirmed' ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200' : 'text-neutral-400 hover:text-neutral-600'}`}
+                    >
+                      Pendentes e Confirmados
+                    </button>
+                    <button 
+                      onClick={() => setAppointmentFilter('completed')}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${appointmentFilter === 'completed' ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200' : 'text-neutral-400 hover:text-neutral-600'}`}
+                    >
+                      Concluídos
+                    </button>
+                    <button 
+                      onClick={() => setAppointmentFilter('cancelled')}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${appointmentFilter === 'cancelled' ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200' : 'text-neutral-400 hover:text-neutral-600'}`}
+                    >
+                      Cancelados
+                    </button>
+                  </div>
+
                   <div className="divide-y divide-neutral-100">
-                    {(shop.appointments || []).length === 0 ? (
+                    {filteredAppointments.length === 0 ? (
                       <div className="p-12 text-center">
                         <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mx-auto mb-4">
                           <Calendar className="text-neutral-200 w-8 h-8" />
                         </div>
-                        <p className="text-neutral-400 font-medium">Nenhum agendamento realizado ainda.</p>
+                        <p className="text-neutral-400 font-medium">Nenhum agendamento encontrado nesta categoria.</p>
                       </div>
                     ) : (
-                      (shop.appointments || []).map((apt) => (
+                      filteredAppointments.map((apt) => (
                         <div key={apt.id} className={`p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-neutral-50 transition-all ${apt.status === 'cancelled' ? 'opacity-50 grayscale' : ''}`}>
                           <div className="flex items-center gap-4">
                             <div className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center shrink-0 ${apt.status === 'confirmed' ? 'bg-emerald-100 text-emerald-600' : apt.status === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-neutral-100 text-neutral-400'}`}>
@@ -1297,6 +1477,143 @@ export default function AdminPage() {
           </AnimatePresence>
         </div>
       </main>
+
+      {/* Manual Booking Modal */}
+      <AnimatePresence>
+        {isBookingModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setIsBookingModalOpen(false)}
+              className="absolute inset-0 bg-neutral-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-[2.5rem] p-8 max-w-lg w-full relative z-10 shadow-2xl border border-neutral-100"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center">
+                    <Calendar className="text-white w-5 h-5" />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight">Novo Agendamento</h2>
+                </div>
+                <button 
+                  onClick={() => setIsBookingModalOpen(false)}
+                  className="p-2 hover:bg-neutral-100 rounded-full transition-all"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAdminBooking} className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Cliente</label>
+                    <input 
+                      type="text" 
+                      placeholder="Nome do cliente"
+                      value={adminBookingData.customerName}
+                      onChange={(e) => setAdminBookingData({ ...adminBookingData, customerName: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Telefone</label>
+                    <input 
+                      type="text" 
+                      placeholder="(00) 00000-0000"
+                      value={adminBookingData.customerPhone}
+                      onChange={(e) => setAdminBookingData({ ...adminBookingData, customerPhone: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Serviço</label>
+                    <select 
+                      value={adminBookingData.serviceId}
+                      onChange={(e) => setAdminBookingData({ ...adminBookingData, serviceId: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold appearance-none"
+                      required
+                    >
+                      <option value="">Selecionar...</option>
+                      {shop.services.filter(s => s.active !== false).map(service => (
+                        <option key={service.id} value={service.id}>{service.name} - R$ {service.price}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Barbeiro</label>
+                    <select 
+                      value={adminBookingData.barberId}
+                      onChange={(e) => setAdminBookingData({ ...adminBookingData, barberId: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold appearance-none"
+                      required
+                    >
+                      <option value="">Selecionar...</option>
+                      {shop.barbers.filter(b => b.active !== false).map(barber => (
+                        <option key={barber.id} value={barber.id}>{barber.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Data</label>
+                    <input 
+                      type="date"
+                      value={adminBookingData.date}
+                      onChange={(e) => setAdminBookingData({ ...adminBookingData, date: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Horário</label>
+                    <select 
+                      value={adminBookingData.time}
+                      onChange={(e) => setAdminBookingData({ ...adminBookingData, time: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold appearance-none"
+                      disabled={!adminBookingData.barberId || !adminBookingData.date}
+                      required
+                    >
+                      <option value="">Selecionar...</option>
+                      {generateTimeSlots(adminBookingData.date).map(slot => {
+                        const occupied = isSlotOccupied(adminBookingData.date, slot, adminBookingData.barberId);
+                        return (
+                          <option key={slot} value={slot} disabled={occupied}>
+                            {slot} {occupied ? '(Ocupado)' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button 
+                    type="submit"
+                    disabled={isBookingManual}
+                    className="w-full bg-neutral-900 text-white py-4 rounded-2xl font-bold hover:bg-neutral-800 transition-all shadow-xl active:scale-95 disabled:opacity-50"
+                  >
+                    {isBookingManual ? 'Agendando...' : 'Confirmar Agendamento'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Toast Notification */}
       <AnimatePresence>
