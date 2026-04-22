@@ -618,7 +618,7 @@ export default function ShopView({ shop }: ShopViewProps) {
                   {Array.from({ length: 7 }).map((_, i) => {
                     const date = new Date();
                     date.setDate(date.getDate() + i);
-                    const dateStr = date.toISOString().split('T')[0];
+                    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                     const dayName = date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
                     const dayNum = date.getDate();
                     const monthName = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
@@ -885,6 +885,7 @@ export default function ShopView({ shop }: ShopViewProps) {
       </div>
     )}
   </div>
+
 
 
       {/* Review Modal */}
