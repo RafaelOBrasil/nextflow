@@ -652,7 +652,10 @@ export default function ShopView({ shop }: ShopViewProps) {
                 {selectedDate && (
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                     {(() => {
-                      const date = new Date(selectedDate + 'T00:00:00');
+                      // Correct way to create local date from YYYY-MM-DD
+                      const [year, month, day] = selectedDate.split('-').map(Number);
+                      const date = new Date(year, month - 1, day);
+                      
                       const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
                       const dayKey = dayKeys[date.getDay()];
                       const hours = (shop.openingHours || {})[dayKey];
@@ -671,7 +674,7 @@ export default function ShopView({ shop }: ShopViewProps) {
                         
                         // Check if it's today and the time has already passed
                         const now = new Date();
-                        const todayStr = now.toISOString().split('T')[0];
+                        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                         if (selectedDate === todayStr) {
                           const currentHour = now.getHours();
                           const currentMin = now.getMinutes();
@@ -887,7 +890,7 @@ export default function ShopView({ shop }: ShopViewProps) {
   </div>
 
 
-
+  
       {/* Review Modal */}
       <AnimatePresence>
         {showReviewModal && (
