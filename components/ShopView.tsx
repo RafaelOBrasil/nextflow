@@ -886,15 +886,6 @@ export default function ShopView({ shop }: ShopViewProps) {
     )}
   </div>
 
-  <div className="max-w-xl mx-auto py-8 text-center">
-        <button 
-          onClick={() => router.push('/admin/saas')}
-          className="text-neutral-300 hover:text-neutral-900 transition-colors text-xs font-bold uppercase tracking-widest"
-          aria-label="Admin"
-        >
-          Painel Admin
-        </button>
-      </div>
 
       {/* Review Modal */}
       <AnimatePresence>
