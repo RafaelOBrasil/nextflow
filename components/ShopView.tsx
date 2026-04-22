@@ -656,9 +656,17 @@ export default function ShopView({ shop }: ShopViewProps) {
                       const [year, month, day] = selectedDate.split('-').map(Number);
                       const date = new Date(year, month - 1, day);
                       
+                      const openedHours = shop.openingHours || {};
+                      
+                      // Normalize keys to lowercase for robust lookup
+                      const normalizedOpeningHours = Object.keys(openedHours).reduce((acc, key) => {
+                        acc[key.toLowerCase()] = openedHours[key];
+                        return acc;
+                      }, {} as any);
+
                       const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
                       const dayKey = dayKeys[date.getDay()];
-                      const hours = (shop.openingHours || {})[dayKey];
+                      const hours = normalizedOpeningHours[dayKey];
                       
                       if (!hours || hours.closed) return null;
 
@@ -890,7 +898,7 @@ export default function ShopView({ shop }: ShopViewProps) {
   </div>
 
 
-  
+
       {/* Review Modal */}
       <AnimatePresence>
         {showReviewModal && (
