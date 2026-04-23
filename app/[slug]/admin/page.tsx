@@ -338,12 +338,37 @@ export default function AdminPage() {
   };
 
   const isSlotOccupied = (date: string, time: string, barberId: string) => {
-    return (shop?.appointments || []).some(apt =>
-      apt.date === date &&
-      apt.time === time &&
-      apt.barberId === barberId &&
-      apt.status !== 'cancelled'
-    );
+    const timeToMinutes = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const slotStart = timeToMinutes(time);
+    let interval = shop?.appointmentInterval || 30;
+    if (shop?.useDynamicInterval && adminBookingData.serviceId) {
+      const selectedService = shop?.services?.find(s => s.id === adminBookingData.serviceId);
+      if (selectedService?.duration) {
+        interval = selectedService.duration;
+      }
+    }
+    const slotEnd = slotStart + interval;
+
+    return (shop?.appointments || []).some(apt => {
+      if (apt.date !== date || apt.barberId !== barberId || apt.status === 'cancelled') return false;
+
+      const aptStart = timeToMinutes(apt.time);
+      let aptDuration = shop?.appointmentInterval || 30;
+      if (shop?.useDynamicInterval) {
+        const aptService = shop?.services?.find((s: any) => s.id === apt.serviceId);
+        if (aptService?.duration) {
+          aptDuration = aptService.duration;
+        }
+      }
+      const aptEnd = aptStart + aptDuration;
+
+      // Check for overlap
+      return slotStart < aptEnd && aptStart < slotEnd;
+    });
   };
 
   if (!mounted || shopLoading) {

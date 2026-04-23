@@ -166,7 +166,7 @@ export default function ShopView({ shop }: ShopViewProps) {
         </p>
         <div className="mt-12 flex items-center gap-2 text-neutral-300">
           <Scissors className="w-5 h-5" />
-          <span className="font-bold tracking-widest text-xs uppercase">Next Flow Barber</span>
+          <span className="font-bold tracking-widest text-xs uppercase">BarberFlow</span>
         </div>
       </div>
     );
@@ -717,13 +717,39 @@ export default function ShopView({ shop }: ShopViewProps) {
                         return <p className="col-span-full text-center py-4 text-neutral-400 text-sm italic">Não há horários disponíveis para este dia.</p>;
                       }
 
+                      // Helper to convert time to minutes
+                      const timeToMinutes = (t: string) => {
+                        const [h, m] = t.split(':').map(Number);
+                        return h * 60 + m;
+                      };
+
                       // Get existing appointments for the selected date and barber
-                      const takenSlots = (shop.appointments || [])
-                        .filter(apt => apt.date === selectedDate && apt.barberId === selectedBarber?.id && apt.status !== 'cancelled')
-                        .map(apt => apt.time);
+                      const currentDayAppointments = (shop.appointments || []).filter(
+                        apt => apt.date === selectedDate && apt.barberId === selectedBarber?.id && apt.status !== 'cancelled'
+                      );
 
                       return slots.map((time) => {
-                        const isTaken = takenSlots.includes(time);
+                        const slotStart = timeToMinutes(time);
+                        let currentInterval = shop.appointmentInterval || 30;
+                        if (shop.useDynamicInterval && selectedService?.duration) {
+                          currentInterval = selectedService.duration;
+                        }
+                        const slotEnd = slotStart + currentInterval;
+
+                        const isTaken = currentDayAppointments.some(apt => {
+                          const aptStart = timeToMinutes(apt.time);
+                          let aptDuration = shop.appointmentInterval || 30;
+                          if (shop.useDynamicInterval) {
+                            const aptService = shop.services?.find(s => s.id === apt.serviceId);
+                            if (aptService?.duration) {
+                              aptDuration = aptService.duration;
+                            }
+                          }
+                          const aptEnd = aptStart + aptDuration;
+                          
+                          // Overlap condition
+                          return slotStart < aptEnd && aptStart < slotEnd;
+                        });
                         
                         return (
                           <button
