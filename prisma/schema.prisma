@@ -59,6 +59,8 @@ model BarberShop {
   updatedAt   DateTime @updatedAt
 
   openingHours String? // JSON string
+  appointmentInterval Int @default(30) // Intervalo em minutos
+  useDynamicInterval Boolean @default(false) // Habilitar cálculo automático por duração de serviço
 
   users        User[]
   services     Service[]
