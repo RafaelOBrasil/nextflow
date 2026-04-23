@@ -74,7 +74,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
     // Sanitize body to only include valid BarberShop fields
     const allowedFields = [
       'name', 'description', 'address', 'phone', 'document', 
-      'logo', 'banner', 'status', 'planId', 'openingHours'
+      'logo', 'banner', 'status', 'planId', 'openingHours',
+      'appointmentInterval', 'useDynamicInterval'
     ];
     
     const updateData: any = {};

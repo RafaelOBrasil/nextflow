@@ -667,6 +667,13 @@ export default function ShopView({ shop }: ShopViewProps) {
                       const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
                       const dayKey = dayKeys[date.getDay()];
                       const hours = normalizedOpeningHours[dayKey];
+
+                      console.log('Debug Agendamento:', {
+                        selectedDate,
+                        dayKey,
+                        normalizedOpeningHours,
+                        foundHours: hours
+                      });
                       
                       if (!hours || hours.closed) return null;
 
@@ -683,12 +690,17 @@ export default function ShopView({ shop }: ShopViewProps) {
                         // Check if it's today and the time has already passed
                         const now = new Date();
                         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                        let appointmentInterval = shop.appointmentInterval || 30;
+                        if (shop.useDynamicInterval && selectedService?.duration) {
+                          appointmentInterval = selectedService.duration;
+                        }
+                        
                         if (selectedDate === todayStr) {
                           const currentHour = now.getHours();
                           const currentMin = now.getMinutes();
                           if (currH < currentHour || (currH === currentHour && currM <= currentMin)) {
                             // Skip past times
-                            const nextM = currM + 30;
+                            const nextM = currM + appointmentInterval;
                             const nextH = currH + Math.floor(nextM / 60);
                             current = `${nextH.toString().padStart(2, '0')}:${(nextM % 60).toString().padStart(2, '0')}`;
                             continue;
@@ -696,7 +708,7 @@ export default function ShopView({ shop }: ShopViewProps) {
                         }
 
                         slots.push(current);
-                        const nextM = currM + 30;
+                        const nextM = currM + appointmentInterval;
                         const nextH = currH + Math.floor(nextM / 60);
                         current = `${nextH.toString().padStart(2, '0')}:${(nextM % 60).toString().padStart(2, '0')}`;
                       }
@@ -897,7 +909,15 @@ export default function ShopView({ shop }: ShopViewProps) {
     )}
   </div>
 
-
+  <div className="max-w-xl mx-auto py-8 text-center">
+        <button 
+          onClick={() => router.push('/admin/saas')}
+          className="text-neutral-300 hover:text-neutral-900 transition-colors text-xs font-bold uppercase tracking-widest"
+          aria-label="Admin"
+        >
+          Painel Admin
+        </button>
+      </div>
 
       {/* Review Modal */}
       <AnimatePresence>

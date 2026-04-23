@@ -93,6 +93,8 @@ export interface BarberShop {
   status?: 'active' | 'blocked' | 'trial' | 'expired';
   planId?: string;
   subscriptions?: Subscription[];
+  appointmentInterval?: number;
+  useDynamicInterval?: boolean;
   createdAt?: string;
   openingHours: {
     [key: string]: { open: string; close: string; closed: boolean };
