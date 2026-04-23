@@ -677,96 +677,67 @@ export default function ShopView({ shop }: ShopViewProps) {
                       
                       if (!hours || hours.closed) return null;
 
-                      const slots: string[] = [];
-                      let current = hours.open;
-                      const end = hours.close;
+                      const currentDayAppointments = (shop.appointments || []).filter(
+                        apt => apt.date === selectedDate && apt.barberId === selectedBarber?.id && apt.status !== 'cancelled'
+                      );
 
-                      const [endH, endM] = end.split(':').map(Number);
-                      
-                      while (true) {
-                        const [currH, currM] = current.split(':').map(Number);
-                        if (currH > endH || (currH === endH && currM >= endM)) break;
-                        
-                        // Check if it's today and the time has already passed
-                        const now = new Date();
-                        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                        let appointmentInterval = shop.appointmentInterval || 30;
-                        if (shop.useDynamicInterval && selectedService?.duration) {
-                          appointmentInterval = selectedService.duration;
-                        }
-                        
-                        if (selectedDate === todayStr) {
-                          const currentHour = now.getHours();
-                          const currentMin = now.getMinutes();
-                          if (currH < currentHour || (currH === currentHour && currM <= currentMin)) {
-                            // Skip past times
-                            const nextM = currM + appointmentInterval;
-                            const nextH = currH + Math.floor(nextM / 60);
-                            current = `${nextH.toString().padStart(2, '0')}:${(nextM % 60).toString().padStart(2, '0')}`;
-                            continue;
+                      const { timeToMinutes, gerarIntervalosLivres, gerarHorariosDisponiveisDinamico } = require('@/lib/scheduling');
+
+                      let serviceDuration = shop.appointmentInterval || 30; // fallback para duração do slot
+                      if (shop.useDynamicInterval && selectedService?.duration) {
+                        serviceDuration = selectedService.duration;
+                      }
+
+                      // Mapear apts para o formato esperado
+                      const aptBlocks = currentDayAppointments.map(apt => {
+                        const startMin = timeToMinutes(apt.time);
+                        let duration = shop.appointmentInterval || 30;
+                        if (shop.useDynamicInterval) {
+                          const aptService = shop.services?.find(s => s.id === apt.serviceId);
+                          if (aptService?.duration) {
+                            duration = aptService.duration;
                           }
                         }
+                        return { startMin, endMin: startMin + duration, date: apt.date, barberId: apt.barberId, status: apt.status };
+                      });
 
-                        slots.push(current);
-                        const nextM = currM + appointmentInterval;
-                        const nextH = currH + Math.floor(nextM / 60);
-                        current = `${nextH.toString().padStart(2, '0')}:${(nextM % 60).toString().padStart(2, '0')}`;
+                      let freeIntervals = gerarIntervalosLivres(hours.open, hours.close, aptBlocks);
+
+                      // Se for hoje, trimar os intervalos livres que já passaram da hora atual
+                      const now = new Date();
+                      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                      if (selectedDate === todayStr) {
+                        const skipPastM = now.getHours() * 60 + now.getMinutes() + 10; // +10 min como margem de respiro opcional
+                        freeIntervals = freeIntervals.map(i => {
+                          if (i.start < skipPastM) {
+                            return { ...i, start: skipPastM };
+                          }
+                          return i;
+                        }).filter(i => i.end > i.start && (i.end - i.start) >= serviceDuration);
                       }
+
+                      // Por padrão, mostra botões a cada 15 min de intervalo ou usando a própria base se não houver dinâmico. 
+                      // Se dinâmico estiver off, vamos de appointmentInterval
+                      const granularity = 15;
+                      
+                      const slots = gerarHorariosDisponiveisDinamico(freeIntervals, serviceDuration, granularity);
 
                       if (slots.length === 0) {
                         return <p className="col-span-full text-center py-4 text-neutral-400 text-sm italic">Não há horários disponíveis para este dia.</p>;
                       }
 
-                      // Helper to convert time to minutes
-                      const timeToMinutes = (t: string) => {
-                        const [h, m] = t.split(':').map(Number);
-                        return h * 60 + m;
-                      };
-
-                      // Get existing appointments for the selected date and barber
-                      const currentDayAppointments = (shop.appointments || []).filter(
-                        apt => apt.date === selectedDate && apt.barberId === selectedBarber?.id && apt.status !== 'cancelled'
-                      );
-
-                      return slots.map((time) => {
-                        const slotStart = timeToMinutes(time);
-                        let currentInterval = shop.appointmentInterval || 30;
-                        if (shop.useDynamicInterval && selectedService?.duration) {
-                          currentInterval = selectedService.duration;
-                        }
-                        const slotEnd = slotStart + currentInterval;
-
-                        const isTaken = currentDayAppointments.some(apt => {
-                          const aptStart = timeToMinutes(apt.time);
-                          let aptDuration = shop.appointmentInterval || 30;
-                          if (shop.useDynamicInterval) {
-                            const aptService = shop.services?.find(s => s.id === apt.serviceId);
-                            if (aptService?.duration) {
-                              aptDuration = aptService.duration;
-                            }
-                          }
-                          const aptEnd = aptStart + aptDuration;
-                          
-                          // Overlap condition
-                          return slotStart < aptEnd && aptStart < slotEnd;
-                        });
-                        
+                      return slots.map((time: string) => {
                         return (
                           <button
                             key={time}
-                            disabled={isTaken}
                             onClick={() => {
-                              if (!isTaken) {
-                                setSelectedTime(time);
-                                setStep(4);
-                              }
+                              setSelectedTime(time);
+                              setStep(4);
                             }}
                             className={`py-3 rounded-xl border text-sm font-bold transition-all ${
                               selectedTime === time 
                                 ? 'bg-neutral-900 border-neutral-900 text-white' 
-                                : isTaken
-                                  ? 'bg-neutral-50 border-neutral-100 text-neutral-300 cursor-not-allowed line-through'
-                                  : 'border-neutral-100 hover:border-neutral-900'
+                                : 'border-neutral-100 hover:border-neutral-900'
                             }`}
                           >
                             {time}

@@ -2,6 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useBarberData } from '@/hooks/use-barber-data';
+import {
+  montarAgendaAdmin,
+  gerarIntervalosLivres,
+  gerarHorariosDisponiveisDinamico,
+  timeToMinutes
+} from '@/lib/scheduling';
 import { useParams, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -314,14 +320,7 @@ export default function AdminPage() {
     let current = hours.open;
     const end = hours.close;
     const [endH, endM] = end.split(':').map(Number);
-
-    let interval = shop.appointmentInterval || 30;
-    if (shop.useDynamicInterval && adminBookingData.serviceId) {
-      const selectedService = shop.services?.find(s => s.id === adminBookingData.serviceId);
-      if (selectedService?.duration) {
-        interval = selectedService.duration;
-      }
-    }
+    const interval = shop.appointmentInterval || 30;
 
     while (true) {
       const [currH, currM] = current.split(':').map(Number);
@@ -337,38 +336,77 @@ export default function AdminPage() {
     return slots;
   };
 
-  const isSlotOccupied = (date: string, time: string, barberId: string) => {
+  const generateAvailableTimeSlots = (dateStr: string, barberId: string) => {
+    if (!shop || !shop.openingHours) return [];
+
+    const date = new Date(dateStr + 'T00:00:00');
+    const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayKey = dayKeys[date.getDay()];
+    const hours = (shop.openingHours || {})[dayKey];
+
+    if (!hours || hours.closed) return [];
+
     const timeToMinutes = (t: string) => {
       const [h, m] = t.split(':').map(Number);
       return h * 60 + m;
     };
+    const minutesToTime = (m: number) => {
+      const h = Math.floor(m / 60);
+      const mins = m % 60;
+      return `${h.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    };
 
-    const slotStart = timeToMinutes(time);
-    let interval = shop?.appointmentInterval || 30;
-    if (shop?.useDynamicInterval && adminBookingData.serviceId) {
-      const selectedService = shop?.services?.find(s => s.id === adminBookingData.serviceId);
+    let currentInterval = shop.appointmentInterval || 30;
+    if (shop.useDynamicInterval && adminBookingData.serviceId) {
+      const selectedService = shop.services?.find(s => s.id === adminBookingData.serviceId);
       if (selectedService?.duration) {
-        interval = selectedService.duration;
+        currentInterval = selectedService.duration;
       }
     }
-    const slotEnd = slotStart + interval;
 
-    return (shop?.appointments || []).some(apt => {
-      if (apt.date !== date || apt.barberId !== barberId || apt.status === 'cancelled') return false;
+    const currentDayAppointments = (shop.appointments || []).filter(
+      apt => apt.date === dateStr && apt.barberId === barberId && apt.status !== 'cancelled'
+    );
 
+    const blockedIntervals = currentDayAppointments.map(apt => {
       const aptStart = timeToMinutes(apt.time);
-      let aptDuration = shop?.appointmentInterval || 30;
-      if (shop?.useDynamicInterval) {
-        const aptService = shop?.services?.find((s: any) => s.id === apt.serviceId);
+      let aptDuration = shop.appointmentInterval || 30;
+      if (shop.useDynamicInterval) {
+        const aptService = shop.services?.find(s => s.id === apt.serviceId);
         if (aptService?.duration) {
           aptDuration = aptService.duration;
         }
       }
-      const aptEnd = aptStart + aptDuration;
-
-      // Check for overlap
-      return slotStart < aptEnd && aptStart < slotEnd;
+      return { start: aptStart, end: aptStart + aptDuration };
     });
+
+    const slots: string[] = [];
+    let currentM = timeToMinutes(hours.open);
+    const endM = timeToMinutes(hours.close);
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    let skipPastM = 0;
+    if (dateStr === todayStr) {
+      skipPastM = now.getHours() * 60 + now.getMinutes();
+    }
+
+    while (currentM + currentInterval <= endM) {
+      const slotEnd = currentM + currentInterval;
+      
+      const overlap = blockedIntervals.find(b => currentM < b.end && b.start < slotEnd);
+
+      if (overlap) {
+        currentM = overlap.end;
+      } else {
+        if (currentM >= skipPastM) {
+          slots.push(minutesToTime(currentM));
+        }
+        currentM += currentInterval;
+      }
+    }
+
+    return slots;
   };
 
   if (!mounted || shopLoading) {
@@ -710,34 +748,51 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                    {generateTimeSlots(adminBookingData.date).map(slot => {
-                      const appointmentsInSlot = (shop?.appointments || []).filter(a => a.date === adminBookingData.date && a.time === slot && a.status !== 'cancelled');
-                      const isBooked = appointmentsInSlot.length > 0;
-
-                      return (
-                        <div
-                          key={slot}
-                          className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center gap-1.5 transition-all ${isBooked
-                            ? 'bg-neutral-900 border-neutral-900 text-white shadow-md'
-                            : 'bg-neutral-50 border-neutral-100 text-neutral-400 opacity-60'
-                            }`}
-                        >
-                          <span className="text-xs font-bold font-mono">{slot}</span>
-                          {isBooked ? (
-                            <div className="flex flex-col gap-0.5">
-                              {appointmentsInSlot.map(a => (
-                                <span key={a.id} className="text-[8px] font-bold truncate max-w-[80px] opacity-80" title={a.customerName}>
-                                  {a.customerName.split(' ')[0]}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-[8px] font-bold uppercase tracking-widest">Livre</span>
-                          )}
-                        </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {(() => {
+                      const dayAppointments = (shop?.appointments || []).filter(a => a.date === adminBookingData.date && a.status !== 'cancelled');
+                      if (dayAppointments.length === 0) {
+                        return <p className="col-span-full text-center py-6 text-neutral-400 font-medium italic">Nenhum agendamento para esta data.</p>;
+                      }
+                      
+                      const agendaItems = montarAgendaAdmin(
+                        dayAppointments,
+                        shop?.services || [],
+                        shop?.appointmentInterval || 30,
+                        shop?.useDynamicInterval || false
                       );
-                    })}
+
+                      return agendaItems.map(item => {
+                        const barbeiro = shop?.barbers?.find(b => b.id === item.barberId)?.name || 'Todos';
+                        return (
+                          <div
+                            key={item.id}
+                            className="p-4 rounded-2xl bg-neutral-900 border border-neutral-900 text-white shadow-md flex flex-col gap-2"
+                          >
+                            <div className="flex justify-between items-center pb-2 border-b border-white/10">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold font-mono">{item.inicio} - {item.fim}</span>
+                              </div>
+                              <span className="text-[10px] uppercase tracking-wider bg-white/10 px-2 py-1 rounded-md font-bold text-center">
+                                {barbeiro.split(' ')[0]}
+                              </span>
+                            </div>
+                            <div className="flex flex-col mt-1">
+                              <span className="text-xs text-neutral-400">Cliente</span>
+                              <span className="font-bold text-sm truncate" title={item.cliente}>{item.cliente || 'Sem Nome'}</span>
+                            </div>
+                            {item.original.serviceId && (
+                              <div className="flex flex-col mt-1">
+                                <span className="text-xs text-neutral-400">Serviço</span>
+                                <span className="font-medium text-xs opacity-90">
+                                  {shop?.services?.find(s => s.id === item.original.serviceId)?.name || 'Serviço'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
 
@@ -1689,11 +1744,10 @@ export default function AdminPage() {
                       required
                     >
                       <option value="">Selecionar...</option>
-                      {generateTimeSlots(adminBookingData.date).map(slot => {
-                        const occupied = isSlotOccupied(adminBookingData.date, slot, adminBookingData.barberId);
+                      {generateAvailableTimeSlots(adminBookingData.date, adminBookingData.barberId).map(slot => {
                         return (
-                          <option key={slot} value={slot} disabled={occupied}>
-                            {slot} {occupied ? '(Ocupado)' : ''}
+                          <option key={slot} value={slot}>
+                            {slot}
                           </option>
                         );
                       })}
