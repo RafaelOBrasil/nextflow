@@ -708,12 +708,12 @@ export default function ShopView({ shop }: ShopViewProps) {
                       const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                       if (selectedDate === todayStr) {
                         const skipPastM = now.getHours() * 60 + now.getMinutes() + 10; // +10 min como margem de respiro opcional
-                        freeIntervals = freeIntervals.map(i => {
+                        freeIntervals = freeIntervals.map((i: { start: number; }) => {
                           if (i.start < skipPastM) {
                             return { ...i, start: skipPastM };
                           }
                           return i;
-                        }).filter(i => i.end > i.start && (i.end - i.start) >= serviceDuration);
+                        }).filter((i: { end: number; start: number; }) => i.end > i.start && (i.end - i.start) >= serviceDuration);
                       }
 
                       // Por padrão, mostra botões a cada 15 min de intervalo ou usando a própria base se não houver dinâmico. 
