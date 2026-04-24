@@ -61,6 +61,7 @@ model BarberShop {
   openingHours String? // JSON string
   appointmentInterval Int @default(30) // Intervalo em minutos
   useDynamicInterval Boolean @default(false) // Habilitar cálculo automático por duração de serviço
+  primaryColor String @default("#000000")
 
   users        User[]
   services     Service[]
@@ -81,6 +82,7 @@ model Service {
   duration    Int
   description String?
   active      Boolean  @default(true)
+  autoAccept  Boolean  @default(false)
   shopId      String
   shop        BarberShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
   appointments Appointment[]

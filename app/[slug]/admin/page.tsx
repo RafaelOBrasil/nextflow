@@ -819,7 +819,7 @@ export default function AdminPage() {
                       onClick={() => setAppointmentFilter('pending_confirmed')}
                       className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${appointmentFilter === 'pending_confirmed' ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200' : 'text-neutral-400 hover:text-neutral-600'}`}
                     >
-                      Pendentes e Confirmados
+                      Pendentes
                     </button>
                     <button
                       onClick={() => setAppointmentFilter('completed')}
