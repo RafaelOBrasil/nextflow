@@ -50,7 +50,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-lg">
+      <div className="bg-white rounded-4xl p-8 w-full max-w-md shadow-lg">
         <div className="flex items-center gap-2 mb-8 justify-center">
           <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center">
             <Scissors className="text-white w-6 h-6" />

@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+const timeToMinutes = (time: string): number => {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+};
+
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
@@ -12,21 +17,36 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
 
-    // Check for existing appointment at same date, time, and barber
-    const existingAppointment = await prisma.appointment.findFirst({
+    const service = await prisma.service.findUnique({ where: { id: serviceId } });
+    const status = service?.autoAccept ? 'confirmed' : 'pending';
+
+    // Check for overlaps
+    const dayAppointments = await prisma.appointment.findMany({
       where: {
         shopId: shop.id,
         date,
-        time,
         barberId,
         status: { not: 'cancelled' }
-      }
+      },
+      include: { service: true }
     });
 
-    if (existingAppointment) {
+    const newStart = timeToMinutes(time);
+    const newEnd = newStart + (service?.duration || shop.appointmentInterval || 30);
+
+    const hasOverlap = dayAppointments.some(apt => {
+      const aptStart = timeToMinutes(apt.time);
+      const aptDuration = apt.service?.duration || shop.appointmentInterval || 30;
+      const aptEnd = aptStart + aptDuration;
+      
+      // Overlap condition: (StartA < EndB) and (EndA > StartB)
+      return newStart < aptEnd && newEnd > aptStart;
+    });
+
+    if (hasOverlap) {
       return NextResponse.json({ 
         error: 'Slot already taken', 
-        message: 'Este horário já foi agendado com este barbeiro. Por favor, escolha outro horário.' 
+        message: 'Este horário tem conflito de tempo com outro agendamento neste barbeiro.' 
       }, { status: 400 });
     }
 
@@ -38,7 +58,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         time,
         serviceId,
         barberId,
-        shopId: shop.id
+        shopId: shop.id,
+        status
       }
     });
 

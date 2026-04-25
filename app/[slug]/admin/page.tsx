@@ -34,9 +34,15 @@ import {
   X,
   LifeBuoy,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Banknote,
+  TrendingUp,
+  BarChart3,
+  TrendingDown,
+  DollarSign
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
 import type { BarberShop, Service, Barber, Appointment } from '@/lib/types';
 import { usePlans } from '@/hooks/use-plans';
 import Link from 'next/link';
@@ -52,11 +58,12 @@ export default function AdminPage() {
   const { tickets, loading: ticketsLoading, createTicket, addMessage, closeTicket, fetchTicket } = useTickets(shopInstance?.id);
   const router = useRouter();
   const [shop, setShop] = useState<BarberShop | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'services' | 'barbers' | 'settings' | 'reviews' | 'support'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'finance' | 'services' | 'barbers' | 'settings' | 'reviews' | 'support'>('dashboard');
   const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'hours' | 'admin'>('general');
   const [isSaving, setIsSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [now, setNow] = useState<Date | null>(null);
   const [shopLoading, setShopLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showExpiredModal, setShowExpiredModal] = useState(false);
@@ -67,10 +74,14 @@ export default function AdminPage() {
     customerPhone: '',
     serviceId: '',
     barberId: '',
-    date: new Date().toISOString().split('T')[0],
+    date: '',
     time: ''
   });
   const [isBookingManual, setIsBookingManual] = useState(false);
+  const formatDate = (date: string) => {
+  const [y, m, d] = date.split('-')
+  return `${d}/${m}/${y}`
+};
 
   // Login state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -80,6 +91,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     setMounted(true);
+    setNow(new Date());
     // Check if already logged in for this shop
     const session = localStorage.getItem(`admin_session_${slug}`);
     if (session === 'true') {
@@ -93,6 +105,15 @@ export default function AdminPage() {
       }
     }
   }, [slug]);
+
+  useEffect(() => {
+  if (!adminBookingData.date) {
+    setAdminBookingData(prev => ({
+      ...prev,
+      date: getToday(),
+    }))
+  }
+}, [adminBookingData.date])
 
   useEffect(() => {
     if (mounted && shops.length > 0) {
@@ -176,6 +197,15 @@ export default function AdminPage() {
     }
   };
 
+  const getToday = () => {
+  const d = new Date()
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('-')
+};
+
   const handleLogout = () => {
     setIsLoggedIn(false);
     localStorage.removeItem(`admin_session_${slug}`);
@@ -214,9 +244,17 @@ export default function AdminPage() {
         alert('A imagem deve ter no máximo 5MB');
         return;
       }
+      if (!shop) return;
+      setIsSaving(true);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setShop(prev => prev ? { ...prev, [field]: reader.result as string } : null);
+      reader.onloadend = async () => {
+        const result = reader.result as string;
+        const updated = { ...shop, [field]: result };
+        setShop(updated);
+        await updateShop(slug, updated);
+        setIsSaving(false);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
       };
       reader.readAsDataURL(file);
     }
@@ -282,7 +320,7 @@ export default function AdminPage() {
         customerPhone: '',
         serviceId: '',
         barberId: '',
-        date: new Date().toISOString().split('T')[0],
+        date: now ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` : '',
         time: ''
       });
       setShowToast(true);
@@ -384,10 +422,8 @@ export default function AdminPage() {
     let currentM = timeToMinutes(hours.open);
     const endM = timeToMinutes(hours.close);
 
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     let skipPastM = 0;
-    if (dateStr === todayStr) {
+    if (now && dateStr === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`) {
       skipPastM = now.getHours() * 60 + now.getMinutes();
     }
 
@@ -413,7 +449,7 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50" suppressHydrationWarning>
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
-          <Scissors className="w-10 h-10 text-neutral-900" />
+          <Scissors className="w-10 h-10 text-neutral-900 theme-text" />
         </motion.div>
       </div>
     );
@@ -431,7 +467,7 @@ export default function AdminPage() {
         </p>
         <button
           onClick={() => router.push('/')}
-          className="bg-neutral-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-neutral-800 transition-all shadow-lg active:scale-95"
+          className="bg-neutral-900 theme-bg text-white px-8 py-4 rounded-2xl font-bold hover:bg-neutral-800 theme-bg-hover transition-all shadow-lg active:scale-95"
         >
           Voltar para o Início
         </button>
@@ -451,7 +487,7 @@ export default function AdminPage() {
         </p>
         <button
           onClick={() => router.push('/')}
-          className="bg-neutral-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-neutral-800 transition-all"
+          className="bg-neutral-900 theme-bg text-white px-8 py-3 rounded-xl font-bold hover:bg-neutral-800 theme-bg-hover transition-all"
         >
           Voltar para o Início
         </button>
@@ -462,20 +498,28 @@ export default function AdminPage() {
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4 font-sans">
+        {shop.primaryColor && (
+          <style dangerouslySetInnerHTML={{ __html: `
+            .theme-bg { background-color: ${shop.primaryColor} !important; color: #fff !important; border-color: ${shop.primaryColor} !important; }
+            .theme-bg-hover:hover { opacity: 0.9 !important; }
+            .theme-text { color: ${shop.primaryColor} !important; }
+            .theme-border { border-color: ${shop.primaryColor} !important; }
+          `}} />
+        )}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="max-w-md w-full"
         >
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-neutral-900 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-neutral-900/20">
+            <div className="w-16 h-16 bg-neutral-900 theme-bg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-neutral-900/20">
               <Lock className="text-white w-8 h-8" />
             </div>
             <h2 className="text-2xl font-bold mb-1">Painel Administrativo</h2>
             <p className="text-neutral-500 text-sm">Acesse para gerenciar sua barbearia</p>
           </div>
 
-          <form onSubmit={handleLogin} className="bg-white rounded-[2rem] p-8 border border-neutral-200 shadow-xl space-y-4">
+          <form onSubmit={handleLogin} className="bg-white rounded-4xl p-8 border border-neutral-200 shadow-xl space-y-4">
             {loginError && (
               <div className="bg-red-50 text-red-500 p-3 rounded-xl text-xs font-bold text-center">
                 {loginError}
@@ -490,7 +534,7 @@ export default function AdminPage() {
                   placeholder="admin@barber.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-medium"
+                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
                   required
                 />
               </div>
@@ -504,14 +548,14 @@ export default function AdminPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-medium"
+                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
                   required
                 />
               </div>
             </div>
             <button
               type="submit"
-              className="w-full bg-neutral-900 text-white py-4 rounded-xl font-bold hover:bg-neutral-800 transition-all shadow-lg active:scale-95 mt-2"
+              className="w-full bg-neutral-900 theme-bg text-white py-4 rounded-xl font-bold hover:bg-neutral-800 theme-bg-hover transition-all shadow-lg active:scale-95 mt-2"
             >
               Entrar no Painel
             </button>
@@ -525,8 +569,88 @@ export default function AdminPage() {
     );
   }
 
+  // Computations for Finance and Dashboard
+  const allApts = shop.appointments || [];
+  const validApts = allApts.filter(a => a.status === 'confirmed' || a.status === 'completed');
+  const earningsConfirmed = validApts.reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
+  const earningsConcluido = allApts.filter(a => a.status === 'completed').reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
+  const earningsPending = allApts.filter(a => a.status === 'pending').reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
+  const earningsCancelled = allApts.filter(a => a.status === 'cancelled').reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
+
+  const todayStr = now ? now.toISOString().split('T')[0] : '';
+  
+  // Faturamento
+  const todayEarnings = validApts.filter(a => a.date === todayStr).reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
+  
+  const currentMonth = now ? now.getMonth() : 0;
+  const currentYear = now ? now.getFullYear() : 0;
+  const monthEarnings = validApts.filter(a => {
+    const d = new Date(a.date);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  }).reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
+
+  // Time limit for week: check if in last 7 days from today
+  const weekEarnings = validApts.filter(a => {
+    if (!now) return false;
+    const aptDate = new Date(a.date);
+    const msDiff = now.getTime() - aptDate.getTime();
+    return msDiff >= 0 && msDiff <= 7 * 24 * 60 * 60 * 1000;
+  }).reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
+
+  // Tempo médio
+  const totalDuration = validApts.reduce((acc, curr) => acc + (curr.service?.duration || 0), 0);
+  const avgDuration = validApts.length > 0 ? Math.round(totalDuration / validApts.length) : 0;
+
+  // Serviços mais realizados
+  const serviceCountMap: Record<string, {name: string, count: number, total: number}> = {};
+  validApts.forEach(a => {
+    if (a.service) {
+      if (!serviceCountMap[a.serviceId]) {
+        serviceCountMap[a.serviceId] = { name: a.service.name, count: 0, total: 0 };
+      }
+      serviceCountMap[a.serviceId].count += 1;
+      serviceCountMap[a.serviceId].total += a.service.price;
+    }
+  });
+  const topServices = Object.values(serviceCountMap).sort((a,b) => b.count - a.count);
+
+  // Produtividade por Barbeiro
+  const barberMetricsMap: Record<string, {name: string, count: number, total: number}> = {};
+  validApts.forEach(a => {
+    if (a.barber) {
+      if (!barberMetricsMap[a.barberId]) {
+        barberMetricsMap[a.barberId] = { name: a.barber.name, count: 0, total: 0 };
+      }
+      barberMetricsMap[a.barberId].count += 1;
+      barberMetricsMap[a.barberId].total += (a.service?.price || 0);
+    }
+  });
+  const barberMetrics = Object.values(barberMetricsMap).sort((a,b) => b.total - a.total);
+
+  // Dados do grafico de 7 ultimos dias
+  const last7Days = Array.from({length: 7}).map((_, i) => {
+    if (!now) return '';
+    const d = new Date(now.getTime());
+    d.setDate(d.getDate() - (6 - i));
+    return d.toISOString().split('T')[0];
+  }).filter(Boolean);
+  const dailyEarningsChart = last7Days.map(date => {
+    return {
+      date: date.substring(8,10) + '/' + date.substring(5,7),
+      Ganhos: validApts.filter(a => a.date === date).reduce((acc, curr) => acc + (curr.service?.price || 0), 0)
+    }
+  });
+
   return (
     <div className="min-h-screen bg-neutral-50 flex font-sans">
+      {shop.primaryColor && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          .theme-bg { background-color: ${shop.primaryColor} !important; color: #fff !important; border-color: ${shop.primaryColor} !important; }
+          .theme-bg-hover:hover { opacity: 0.9 !important; }
+          .theme-text { color: ${shop.primaryColor} !important; }
+          .theme-border { border-color: ${shop.primaryColor} !important; }
+        `}} />
+      )}
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {isMobileMenuOpen && (
@@ -546,12 +670,12 @@ export default function AdminPage() {
         {/* Expiration Modal */}
         <AnimatePresence>
           {showExpiredModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-neutral-900/60 backdrop-blur-sm"
+                className="absolute inset-0 bg-neutral-900 theme-bg/60 backdrop-blur-sm"
               />
               <motion.div
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -571,13 +695,13 @@ export default function AdminPage() {
                   <Link
                     href={`/${slug}/admin/subscription`}
                     onClick={() => setShowExpiredModal(false)}
-                    className="w-full bg-neutral-900 text-white py-4 rounded-2xl font-bold hover:bg-neutral-800 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                    className="w-full bg-neutral-900 theme-bg text-white py-4 rounded-2xl font-bold hover:bg-neutral-800 theme-bg-hover transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
                   >
                     <Star className="w-5 h-5 text-amber-400 fill-amber-400" /> Renovar Assinatura
                   </Link>
                   <button
                     onClick={() => setShowExpiredModal(false)}
-                    className="w-full bg-white text-neutral-400 py-4 rounded-2xl font-bold hover:text-neutral-900 transition-all text-sm"
+                    className="w-full bg-white text-neutral-400 py-4 rounded-2xl font-bold hover:text-neutral-900 theme-text transition-all text-sm"
                   >
                     Lembrar mais tarde
                   </button>
@@ -587,10 +711,10 @@ export default function AdminPage() {
           )}
         </AnimatePresence>        <div className="p-6 border-b border-neutral-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-neutral-900 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-neutral-900 theme-bg rounded-lg flex items-center justify-center">
               <Scissors className="text-white w-5 h-5" />
             </div>
-            <span className="font-bold text-lg tracking-tight">BarberFlow</span>
+            <span className="font-bold text-lg tracking-tight">Next Flow Barber</span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden p-2 hover:bg-neutral-100 rounded-lg">
             <X className="w-6 h-6" />
@@ -600,37 +724,43 @@ export default function AdminPage() {
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <button
             onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'dashboard' ? 'bg-neutral-900 text-white shadow-lg shadow-neutral-900/10' : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'dashboard' ? 'bg-neutral-900 theme-bg text-white shadow-lg shadow-neutral-900/10' : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 theme-text'}`}
           >
             <LayoutDashboard className="w-5 h-5" /> Dashboard
           </button>
           <button
+            onClick={() => { setActiveTab('finance'); setIsMobileMenuOpen(false); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'finance' ? 'bg-neutral-900 theme-bg text-white shadow-lg shadow-neutral-900/10' : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 theme-text'}`}
+          >
+            <Banknote className="w-5 h-5" /> Financeiro
+          </button>
+          <button
             onClick={() => { setActiveTab('services'); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'services' ? 'bg-neutral-900 text-white shadow-lg shadow-neutral-900/10' : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'services' ? 'bg-neutral-900 theme-bg text-white shadow-lg shadow-neutral-900/10' : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 theme-text'}`}
           >
             <Scissors className="w-5 h-5" /> Serviços
           </button>
           <button
             onClick={() => { setActiveTab('barbers'); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'barbers' ? 'bg-neutral-900 text-white shadow-lg shadow-neutral-900/10' : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'barbers' ? 'bg-neutral-900 theme-bg text-white shadow-lg shadow-neutral-900/10' : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 theme-text'}`}
           >
             <Users className="w-5 h-5" /> Barbeiros
           </button>
           <button
             onClick={() => { setActiveTab('settings'); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-neutral-900 text-white shadow-lg shadow-neutral-900/10' : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-neutral-900 theme-bg text-white shadow-lg shadow-neutral-900/10' : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 theme-text'}`}
           >
             <Settings className="w-5 h-5" /> Configurações
           </button>
           <button
             onClick={() => { setActiveTab('reviews'); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'reviews' ? 'bg-neutral-900 text-white shadow-lg shadow-neutral-900/10' : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'reviews' ? 'bg-neutral-900 theme-bg text-white shadow-lg shadow-neutral-900/10' : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 theme-text'}`}
           >
             <MessageCircle className="w-5 h-5" /> Avaliações
           </button>
           <button
             onClick={() => { setActiveTab('support'); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'support' ? 'bg-neutral-900 text-white shadow-lg shadow-neutral-900/10' : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'support' ? 'bg-neutral-900 theme-bg text-white shadow-lg shadow-neutral-900/10' : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 theme-text'}`}
           >
             <LifeBuoy className="w-5 h-5" /> Suporte
           </button>
@@ -663,6 +793,7 @@ export default function AdminPage() {
             </button>
             <h2 className="text-xs md:text-sm font-bold text-neutral-400 uppercase tracking-widest hidden sm:block">
               {activeTab === 'dashboard' && 'Visão Geral'}
+              {activeTab === 'finance' && 'Financeiro e Métricas'}
               {activeTab === 'services' && 'Gestão de Serviços'}
               {activeTab === 'barbers' && 'Equipe de Barbeiros'}
               {activeTab === 'settings' && 'Configurações da Loja'}
@@ -699,60 +830,75 @@ export default function AdminPage() {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-8"
               >
-                {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-10 h-10 bg-neutral-100 rounded-xl flex items-center justify-center">
-                        <Calendar className="text-neutral-900 w-5 h-5" />
-                      </div>
-                      <span className="text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded-full">+12%</span>
+
+                {/* Financial Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                  <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                      <Banknote className="w-14 h-14 text-emerald-500" />
                     </div>
-                    <h3 className="text-neutral-400 text-sm font-bold mb-1">Total de Agendamentos</h3>
-                    <p className="text-3xl font-bold">{shop.appointments?.length || 0}</p>
+                    <div className="flex items-center justify-between mb-4 relative z-10">
+                      <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                        <TrendingUp className="text-emerald-600 w-5 h-5" />
+                      </div>
+                    </div>
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Confirmados</h3>
+                    <p className="text-3xl font-bold text-emerald-600 relative z-10">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsConfirmed+earningsConcluido)}
+                    </p>
                   </div>
-                  <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-10 h-10 bg-neutral-100 rounded-xl flex items-center justify-center">
-                        <Scissors className="text-neutral-900 w-5 h-5" />
+                  <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                      <Clock className="w-14 h-14 text-amber-500" />
+                    </div>
+                    <div className="flex items-center justify-between mb-4 relative z-10">
+                      <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                        <BarChart3 className="text-amber-600 w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="text-neutral-400 text-sm font-bold mb-1">Serviços Ativos</h3>
-                    <p className="text-3xl font-bold">{shop.services?.length || 0}</p>
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Estimados (Pendentes)</h3>
+                    <p className="text-3xl font-bold text-amber-600 relative z-10">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsPending)}
+                    </p>
                   </div>
-                  <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-10 h-10 bg-neutral-100 rounded-xl flex items-center justify-center">
-                        <Users className="text-neutral-900 w-5 h-5" />
+                  <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                      <XCircle className="w-14 h-14 text-rose-500" />
+                    </div>
+                    <div className="flex items-center justify-between mb-4 relative z-10">
+                      <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center">
+                        <TrendingDown className="text-rose-600 w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="text-neutral-400 text-sm font-bold mb-1">Barbeiros na Equipe</h3>
-                    <p className="text-3xl font-bold">{shop.barbers?.length || 0}</p>
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Cancelados</h3>
+                    <p className="text-3xl font-bold text-rose-600 relative z-10">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsCancelled)}
+                    </p>
                   </div>
                 </div>
 
                 {/* Daily Agenda View */}
-                <div className="bg-white rounded-[2rem] border border-neutral-200 shadow-sm p-6">
+                <div className="bg-white rounded-4xl border border-neutral-200 shadow-sm p-6">
                   <div className="flex items-center justify-between mb-6">
                     <div className="space-y-1">
                       <h3 className="font-bold text-lg">Agenda do Dia</h3>
-                      <p className="text-xs text-neutral-400 font-medium font-mono uppercase tracking-wider">{adminBookingData.date}</p>
+                      <p className="text-xs text-neutral-400 font-medium font-mono uppercase tracking-wider">{formatDate(adminBookingData.date)}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <input
                         type="date"
                         value={adminBookingData.date}
                         onChange={(e) => setAdminBookingData({ ...adminBookingData, date: e.target.value })}
-                        className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-100 font-bold text-xs focus:outline-none focus:border-neutral-900"
+                        className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-100 font-bold text-xs focus:outline-none focus:border-neutral-900 theme-border"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {(() => {
-                      const dayAppointments = (shop?.appointments || []).filter(a => a.date === adminBookingData.date && a.status !== 'cancelled');
+                      const dayAppointments = (shop?.appointments || []).filter(a => a.date === adminBookingData.date && a.status === 'confirmed');
                       if (dayAppointments.length === 0) {
-                        return <p className="col-span-full text-center py-6 text-neutral-400 font-medium italic">Nenhum agendamento para esta data.</p>;
+                        return <p className="col-span-full text-center py-6 text-neutral-400 font-medium italic">Nenhum agendamento confirmado para esta data.<br/><span className="text-[10px] mt-2 block opacity-70">Agendamentos pendentes não são exibidos nesta grade. Consulte a lista abaixo para aprová-los.</span></p>;
                       }
                       
                       const agendaItems = montarAgendaAdmin(
@@ -767,7 +913,7 @@ export default function AdminPage() {
                         return (
                           <div
                             key={item.id}
-                            className="p-4 rounded-2xl bg-neutral-900 border border-neutral-900 text-white shadow-md flex flex-col gap-2"
+                            className="p-4 rounded-2xl bg-neutral-900 theme-bg border border-neutral-900 theme-border text-white shadow-md flex flex-col gap-2"
                           >
                             <div className="flex justify-between items-center pb-2 border-b border-white/10">
                               <div className="flex flex-col">
@@ -797,7 +943,7 @@ export default function AdminPage() {
                 </div>
 
                 {/* Recent Appointments */}
-                <div className="bg-white rounded-[2rem] border border-neutral-200 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-4xl border border-neutral-200 shadow-sm overflow-hidden">
                   <div className="p-6 border-b border-neutral-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="space-y-1">
                       <h3 className="font-bold text-lg">Agendamentos Recentes</h3>
@@ -806,7 +952,7 @@ export default function AdminPage() {
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => setIsBookingModalOpen(true)}
-                        className="flex items-center gap-2 bg-neutral-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-neutral-800 transition-all shadow-lg active:scale-95"
+                        className="flex items-center gap-2 bg-neutral-900 theme-bg text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-neutral-800 theme-bg-hover transition-all shadow-lg active:scale-95"
                       >
                         <Plus className="w-4 h-4" /> Novo Agendamento
                       </button>
@@ -817,19 +963,19 @@ export default function AdminPage() {
                   <div className="px-6 py-2 bg-neutral-50/50 border-b border-neutral-100 flex gap-2 overflow-x-auto no-scrollbar">
                     <button
                       onClick={() => setAppointmentFilter('pending_confirmed')}
-                      className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${appointmentFilter === 'pending_confirmed' ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200' : 'text-neutral-400 hover:text-neutral-600'}`}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${appointmentFilter === 'pending_confirmed' ? 'bg-white text-neutral-900 theme-text shadow-sm border border-neutral-200' : 'text-neutral-400 hover:text-neutral-600'}`}
                     >
-                      Pendentes
+                      Pendentes e Confirmados
                     </button>
                     <button
                       onClick={() => setAppointmentFilter('completed')}
-                      className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${appointmentFilter === 'completed' ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200' : 'text-neutral-400 hover:text-neutral-600'}`}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${appointmentFilter === 'completed' ? 'bg-white text-neutral-900 theme-text shadow-sm border border-neutral-200' : 'text-neutral-400 hover:text-neutral-600'}`}
                     >
                       Concluídos
                     </button>
                     <button
                       onClick={() => setAppointmentFilter('cancelled')}
-                      className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${appointmentFilter === 'cancelled' ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200' : 'text-neutral-400 hover:text-neutral-600'}`}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${appointmentFilter === 'cancelled' ? 'bg-white text-neutral-900 theme-text shadow-sm border border-neutral-200' : 'text-neutral-400 hover:text-neutral-600'}`}
                     >
                       Cancelados
                     </button>
@@ -866,7 +1012,7 @@ export default function AdminPage() {
 
                           <div className="flex items-center justify-between md:justify-end gap-4 md:gap-6 w-full md:w-auto mt-2 md:mt-0">
                             <div className="text-left md:text-right">
-                              <div className="flex items-center gap-2 text-xs md:text-sm font-bold text-neutral-900 mb-1">
+                              <div className="flex items-center gap-2 text-xs md:text-sm font-bold text-neutral-900 theme-text mb-1">
                                 <Calendar className="w-3 h-3 md:w-4 md:h-4 text-neutral-400" /> {apt.date}
                               </div>
                               <div className="flex items-center gap-2 text-[10px] md:text-xs font-bold text-neutral-400">
@@ -930,6 +1076,130 @@ export default function AdminPage() {
               </motion.div>
             )}
 
+            {activeTab === 'finance' && (
+              <motion.div
+                key="finance"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-8"
+              >
+                {/* Finance Metric Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                        <Banknote className="text-emerald-600 w-5 h-5" />
+                      </div>
+                    </div>
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1">Faturamento (Hoje)</h3>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(todayEarnings)}
+                    </p>
+                  </div>
+                  <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <TrendingUp className="text-blue-600 w-5 h-5" />
+                      </div>
+                    </div>
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1">Faturamento (7 dias)</h3>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(weekEarnings)}
+                    </p>
+                  </div>
+                  <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                        <BarChart3 className="text-indigo-600 w-5 h-5" />
+                      </div>
+                    </div>
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1">Faturamento (Mês)</h3>
+                    <p className="text-2xl font-bold text-indigo-600">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(monthEarnings)}
+                    </p>
+                  </div>
+                  <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-10 h-10 bg-neutral-100 rounded-xl flex items-center justify-center">
+                        <Clock className="text-neutral-900 w-5 h-5 theme-text" />
+                      </div>
+                    </div>
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1">Tempo Médio</h3>
+                    <p className="text-2xl font-bold text-neutral-900 theme-text">{avgDuration} min/serviço</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Chart */}
+                  <div className="bg-white rounded-4xl border border-neutral-200 shadow-sm p-6 flex flex-col">
+                    <h3 className="font-bold text-lg mb-6">Receita Diária (7 dias)</h3>
+                    <div className="flex-1 min-h-75">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={dailyEarningsChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} dy={10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
+                          <RechartsTooltip cursor={{fill: '#F3F4F6'}} contentStyle={{borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                          <Bar dataKey="Ganhos" fill={shop.primaryColor || "#171717"} radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Top Services */}
+                  <div className="bg-white rounded-4xl border border-neutral-200 shadow-sm p-6 overflow-hidden flex flex-col">
+                    <h3 className="font-bold text-lg mb-6">Serviços Mais Realizados</h3>
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+                      {topServices.length > 0 ? topServices.map((srv, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-4 bg-neutral-50 rounded-2xl">
+                          <div className="space-y-1">
+                            <span className="font-bold block text-sm">{srv.name}</span>
+                            <span className="text-xs text-neutral-500 font-medium">{srv.count} agendamentos</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-bold text-emerald-600 block text-sm">
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(srv.total)}
+                            </span>
+                          </div>
+                        </div>
+                      )) : (
+                        <p className="text-center text-neutral-400 py-8 text-sm">Nenhum serviço computado.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-4xl border border-neutral-200 shadow-sm p-6">
+                  <h3 className="font-bold text-lg mb-6">Produtividade por Barbeiro</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {barberMetrics.length > 0 ? barberMetrics.map((b, idx) => (
+                      <div key={idx} className="p-4 border border-neutral-100 rounded-2xl flex flex-col gap-2 relative overflow-hidden">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 bg-neutral-900 rounded-full flex items-center justify-center text-white text-xs font-bold theme-bg">
+                            {b.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-bold text-sm truncate">{b.name}</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-neutral-500">Atendimentos Realizados</p>
+                          <p className="font-bold text-lg">{b.count}</p>
+                        </div>
+                        <div className="space-y-1 mt-2">
+                          <p className="text-xs text-neutral-500">Valor Gerado</p>
+                          <p className="font-bold text-emerald-600 text-lg">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(b.total)}
+                          </p>
+                        </div>
+                      </div>
+                    )) : (
+                      <p className="col-span-full text-center text-neutral-400 py-6 text-sm">Nenhuma métrica de barbeiros.</p>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {activeTab === 'services' && (
               <motion.div
                 key="services"
@@ -958,7 +1228,7 @@ export default function AdminPage() {
                         };
                         setShop({ ...shop, services: [...(shop.services || []), newService] });
                       }}
-                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-neutral-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-neutral-800 transition-all"
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-neutral-900 theme-bg text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-neutral-800 theme-bg-hover transition-all"
                     >
                       <Plus className="w-4 h-4" /> Adicionar Serviço
                     </button>
@@ -970,20 +1240,38 @@ export default function AdminPage() {
                     <div key={service.id} className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm flex flex-col md:flex-row gap-6">
                       <div className="flex-1 space-y-4">
                         <div className="grid md:grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-neutral-400 uppercase ml-1">
-                              Nome do Serviço {service.active === false && <span className="text-amber-500 ml-2">(Desativado)</span>}
-                            </label>
-                            <input
-                              type="text"
-                              value={service.name}
-                              onChange={(e) => {
-                                const newServices = [...(shop.services || [])];
-                                newServices[index].name = e.target.value;
-                                setShop({ ...shop, services: newServices });
-                              }}
-                              className={`w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold ${service.active === false ? 'opacity-60 grayscale' : ''}`}
-                            />
+                          <div className="space-y-1.5 flex flex-col md:flex-row md:items-center gap-4">
+                            <div className="flex-1 space-y-1.5">
+                              <label className="text-xs font-bold text-neutral-400 uppercase ml-1">
+                                Nome do Serviço {service.active === false && <span className="text-amber-500 ml-2">(Desativado)</span>}
+                              </label>
+                              <input
+                                type="text"
+                                value={service.name}
+                                onChange={(e) => {
+                                  const newServices = [...(shop.services || [])];
+                                  newServices[index].name = e.target.value;
+                                  setShop({ ...shop, services: newServices });
+                                }}
+                                className={`w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold ${service.active === false ? 'opacity-60 grayscale' : ''}`}
+                              />
+                            </div>
+                            <div className="flex items-center gap-2 mt-6">
+                              <input
+                                type="checkbox"
+                                id={`autoAccept-${service.id}`}
+                                checked={service.autoAccept || false}
+                                onChange={(e) => {
+                                  const newServices = [...(shop.services || [])];
+                                  newServices[index].autoAccept = e.target.checked;
+                                  setShop({ ...shop, services: newServices });
+                                }}
+                                className="w-4 h-4 rounded border-neutral-300 text-neutral-900 theme-text focus:ring-neutral-900"
+                              />
+                              <label htmlFor={`autoAccept-${service.id}`} className="text-sm font-bold text-neutral-600">
+                                Aceite Automático
+                              </label>
+                            </div>
                           </div>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
@@ -996,7 +1284,7 @@ export default function AdminPage() {
                                   newServices[index].price = Number(e.target.value);
                                   setShop({ ...shop, services: newServices });
                                 }}
-                                className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold"
+                                className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold"
                               />
                             </div>
                             <div className="space-y-1.5">
@@ -1009,7 +1297,7 @@ export default function AdminPage() {
                                   newServices[index].duration = Number(e.target.value);
                                   setShop({ ...shop, services: newServices });
                                 }}
-                                className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold"
+                                className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold"
                               />
                             </div>
                           </div>
@@ -1071,7 +1359,7 @@ export default function AdminPage() {
                         };
                         setShop({ ...shop, barbers: [...(shop.barbers || []), newBarber] });
                       }}
-                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-neutral-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-neutral-800 transition-all"
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-neutral-900 theme-bg text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-neutral-800 theme-bg-hover transition-all"
                     >
                       <Plus className="w-4 h-4" /> Adicionar Barbeiro
                     </button>
@@ -1081,7 +1369,7 @@ export default function AdminPage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   {(shop.barbers || []).map((barber, index) => (
                     <div key={barber.id} className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm flex items-start gap-4">
-                      <div className={`w-20 h-20 rounded-2xl overflow-hidden border border-neutral-100 flex-shrink-0 ${barber.active === false ? 'grayscale opacity-60' : ''}`}>
+                      <div className={`w-20 h-20 rounded-2xl overflow-hidden border border-neutral-100 shrink-0 ${barber.active === false ? 'grayscale opacity-60' : ''}`}>
                         <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 space-y-3">
@@ -1098,7 +1386,7 @@ export default function AdminPage() {
                               newBarbers[index].name = e.target.value;
                               setShop({ ...shop, barbers: newBarbers });
                             }}
-                            className={`w-full px-3 py-2 rounded-lg bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold text-lg ${barber.active === false ? 'opacity-60 grayscale' : ''}`}
+                            className={`w-full px-3 py-2 rounded-lg bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold text-lg ${barber.active === false ? 'opacity-60 grayscale' : ''}`}
                           />
                           <input
                             type="text"
@@ -1162,7 +1450,7 @@ export default function AdminPage() {
 
                 <div className="grid gap-4">
                   {!shop.reviews || shop.reviews.length === 0 ? (
-                    <div className="bg-white p-12 rounded-[2rem] border border-neutral-200 text-center">
+                    <div className="bg-white p-12 rounded-4xl border border-neutral-200 text-center">
                       <MessageCircle className="w-12 h-12 text-neutral-200 mx-auto mb-4" />
                       <p className="text-neutral-400 font-medium">Nenhuma avaliação recebida ainda.</p>
                     </div>
@@ -1173,7 +1461,7 @@ export default function AdminPage() {
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-sm md:text-base">{review.customerName}</span>
-                              <span className="text-[10px] md:text-xs text-neutral-400 font-medium">{new Date(review.date).toLocaleDateString('pt-BR')}</span>
+                              <span className="text-[10px] md:text-xs text-neutral-400 font-medium">{review.date.split('-').reverse().join('/')}</span>
                             </div>
                             <div className="flex gap-0.5">
                               {Array.from({ length: 5 }).map((_, i) => (
@@ -1192,7 +1480,7 @@ export default function AdminPage() {
                             }}
                             className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border ${review.status === 'pending'
                               ? 'bg-amber-50 text-amber-600 border-amber-100'
-                              : 'bg-neutral-50 text-neutral-400 border-neutral-100 hover:border-neutral-900 hover:text-neutral-900'
+                              : 'bg-neutral-50 text-neutral-400 border-neutral-100 hover:border-neutral-900 theme-border hover:text-neutral-900 theme-text'
                               }`}
                           >
                             Pendente
@@ -1205,7 +1493,7 @@ export default function AdminPage() {
                             }}
                             className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border ${review.status === 'approved'
                               ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                              : 'bg-neutral-50 text-neutral-400 border-neutral-100 hover:border-neutral-900 hover:text-neutral-900'
+                              : 'bg-neutral-50 text-neutral-400 border-neutral-100 hover:border-neutral-900 theme-border hover:text-neutral-900 theme-text'
                               }`}
                           >
                             Aprovado
@@ -1218,7 +1506,7 @@ export default function AdminPage() {
                             }}
                             className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border ${review.status === 'approved_for_display'
                               ? 'bg-blue-50 text-blue-600 border-blue-100'
-                              : 'bg-neutral-50 text-neutral-400 border-neutral-100 hover:border-neutral-900 hover:text-neutral-900'
+                              : 'bg-neutral-50 text-neutral-400 border-neutral-100 hover:border-neutral-900 theme-border hover:text-neutral-900 theme-text'
                               }`}
                           >
                             Exibir no Site
@@ -1250,38 +1538,38 @@ export default function AdminPage() {
                 <div className="flex bg-white p-2 rounded-2xl border border-neutral-100 shadow-sm gap-2 overflow-x-auto no-scrollbar">
                   <button
                     onClick={() => setActiveSettingsTab('general')}
-                    className={`flex-1 min-w-[max-content] py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
+                    className={`flex-1 min-w-max py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
                       activeSettingsTab === 'general'
-                        ? 'bg-neutral-900 text-white shadow-md'
-                        : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'
+                        ? 'bg-neutral-900 theme-bg text-white shadow-md'
+                        : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 theme-text'
                     }`}
                   >
                     Informações Gerais
                   </button>
                   <button
                     onClick={() => setActiveSettingsTab('hours')}
-                    className={`flex-1 min-w-[max-content] py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
+                    className={`flex-1 min-w-max py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
                       activeSettingsTab === 'hours'
-                        ? 'bg-neutral-900 text-white shadow-md'
-                        : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'
+                        ? 'bg-neutral-900 theme-bg text-white shadow-md'
+                        : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 theme-text'
                     }`}
                   >
                     Horário de Funcionamento e Intervalos
                   </button>
                   <button
                     onClick={() => setActiveSettingsTab('admin')}
-                    className={`flex-1 min-w-[max-content] py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
+                    className={`flex-1 min-w-max py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
                       activeSettingsTab === 'admin'
-                        ? 'bg-neutral-900 text-white shadow-md'
-                        : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'
+                        ? 'bg-neutral-900 theme-bg text-white shadow-md'
+                        : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 theme-text'
                     }`}
                   >
-                    Acesso Administrativo, Logotipo e Capa
+                    Logotipo e Capa
                   </button>
                 </div>
 
                 {activeSettingsTab === 'general' && (
-                <div className="bg-white p-4 md:p-8 rounded-[2rem] border border-neutral-200 shadow-sm space-y-6">
+                <div className="bg-white p-4 md:p-8 rounded-4xl border border-neutral-200 shadow-sm space-y-6">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg md:text-xl font-bold">Informações Gerais</h3>
                     <button
@@ -1299,7 +1587,7 @@ export default function AdminPage() {
                         type="text"
                         value={shop.name}
                         onChange={(e) => setShop({ ...shop, name: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold"
+                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -1310,7 +1598,7 @@ export default function AdminPage() {
                           type="text"
                           value={shop.slug}
                           onChange={(e) => setShop({ ...shop, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
-                          className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold"
+                          className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold"
                         />
                       </div>
                     </div>
@@ -1321,7 +1609,7 @@ export default function AdminPage() {
                       value={shop.description}
                       onChange={(e) => setShop({ ...shop, description: e.target.value })}
                       rows={3}
-                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-medium"
+                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
                     />
                   </div>
                   <div className="grid md:grid-cols-2 gap-6">
@@ -1331,7 +1619,7 @@ export default function AdminPage() {
                         type="text"
                         value={shop.address}
                         onChange={(e) => setShop({ ...shop, address: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-medium"
+                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -1340,15 +1628,63 @@ export default function AdminPage() {
                         type="text"
                         value={shop.phone}
                         onChange={(e) => setShop({ ...shop, phone: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-medium"
+                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
                       />
+                    </div>
+                  </div>
+
+                  <div className="mt-6 pt-6 border-t border-neutral-100">
+                    <h4 className="text-sm font-bold mb-4">Acesso Administrativo</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-neutral-400 uppercase ml-1">E-mail do Administrador</label>
+                        <div className="relative">
+                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                          <input
+                            type="email"
+                            value={shop.adminEmail || ''}
+                            onChange={(e) => setShop({ ...shop, adminEmail: e.target.value })}
+                            className="w-full pl-12 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Senha do Painel</label>
+                        <div className="relative">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                          <input
+                            type="password"
+                            value={shop.adminPassword || ''}
+                            onChange={(e) => setShop({ ...shop, adminPassword: e.target.value })}
+                            placeholder="••••••••"
+                            className="w-full pl-12 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
+                          />
+                        </div>
+                        <p className="text-[10px] text-neutral-400 ml-1 italic">Preencha se desejar alterar a senha atual.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 pt-6 border-t border-neutral-100">
+                    <h4 className="text-sm font-bold mb-4">Personalização</h4>
+                    <div className="space-y-1.5 w-max">
+                      <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Cor Principal</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={shop.primaryColor || '#000000'}
+                          onChange={(e) => setShop({ ...shop, primaryColor: e.target.value })}
+                          className="w-12 h-12 rounded-lg cursor-pointer border-0 p-0"
+                        />
+                        <span className="text-sm font-mono text-neutral-500 uppercase">{shop.primaryColor || '#000000'}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
                 )}
 
                 {activeSettingsTab === 'hours' && (
-                <div className="bg-white p-4 md:p-8 rounded-[2rem] border border-neutral-200 shadow-sm">
+                <div className="bg-white p-4 md:p-8 rounded-4xl border border-neutral-200 shadow-sm">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg md:text-xl font-bold">Horário de Funcionamento e Intervalos</h3>
                       <button
@@ -1370,7 +1706,7 @@ export default function AdminPage() {
                           disabled={shop.useDynamicInterval}
                           value={shop.appointmentInterval || 30}
                           onChange={(e) => setShop({ ...shop, appointmentInterval: parseInt(e.target.value) })}
-                          className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-medium disabled:opacity-50"
+                          className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium disabled:opacity-50"
                         />
                       </div>
                       <div className="flex items-center gap-2 mt-6">
@@ -1379,9 +1715,9 @@ export default function AdminPage() {
                             type="checkbox"
                             checked={shop.useDynamicInterval || false}
                             onChange={(e) => setShop({ ...shop, useDynamicInterval: e.target.checked })}
-                            className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+                            className="w-4 h-4 rounded border-neutral-300 text-neutral-900 theme-text focus:ring-neutral-900"
                           />
-                          <span className="text-sm font-bold text-neutral-900">Calcular automaticamente pela duração do serviço</span>
+                          <span className="text-sm font-bold text-neutral-900 theme-text">Calcular automaticamente pela duração do serviço</span>
                         </label>
                       </div>
                     </div>
@@ -1389,7 +1725,7 @@ export default function AdminPage() {
                     <div className="space-y-4">
                       {Object.entries(shop.openingHours || {}).map(([day, hours]) => (
                         <div key={day} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-100 gap-4">
-                          <div className="flex items-center gap-4 min-w-[100px]">
+                          <div className="flex items-center gap-4 min-w-25">
                             <span className="font-bold text-sm capitalize">
                               {day === 'monday' && 'Segunda'}
                               {day === 'tuesday' && 'Terça'}
@@ -1404,7 +1740,7 @@ export default function AdminPage() {
                           <div className="flex flex-wrap items-center gap-3 flex-1 justify-end">
                             {!hours.closed ? (
                               <>
-                                <div className="relative flex-1 min-w-[100px] max-w-[120px]">
+                                <div className="relative flex-1 min-w-25 max-w-30">
                                   <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
                                   <input
                                     type="time"
@@ -1414,11 +1750,11 @@ export default function AdminPage() {
                                       newHours[day].open = e.target.value;
                                       setShop({ ...shop, openingHours: newHours });
                                     }}
-                                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-white border border-neutral-200 text-sm font-bold focus:outline-none focus:border-neutral-900"
+                                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-white border border-neutral-200 text-sm font-bold focus:outline-none focus:border-neutral-900 theme-border"
                                   />
                                 </div>
                                 <span className="text-neutral-400 text-xs font-bold">até</span>
-                                <div className="relative flex-1 min-w-[100px] max-w-[120px]">
+                                <div className="relative flex-1 min-w-25 max-w-30">
                                   <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
                                   <input
                                     type="time"
@@ -1428,7 +1764,7 @@ export default function AdminPage() {
                                       newHours[day].close = e.target.value;
                                       setShop({ ...shop, openingHours: newHours });
                                     }}
-                                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-white border border-neutral-200 text-sm font-bold focus:outline-none focus:border-neutral-900"
+                                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-white border border-neutral-200 text-sm font-bold focus:outline-none focus:border-neutral-900 theme-border"
                                   />
                                 </div>
                               </>
@@ -1445,7 +1781,7 @@ export default function AdminPage() {
                                   newHours[day].closed = e.target.checked;
                                   setShop({ ...shop, openingHours: newHours });
                                 }}
-                                className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+                                className="w-4 h-4 rounded border-neutral-300 text-neutral-900 theme-text focus:ring-neutral-900"
                               />
                               <span className="text-xs font-bold text-neutral-500">Fechado</span>
                             </label>
@@ -1458,48 +1794,7 @@ export default function AdminPage() {
 
                 {activeSettingsTab === 'admin' && (
                   <div className="space-y-8">
-                  <div className="bg-white p-4 md:p-8 rounded-[2rem] border border-neutral-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-lg md:text-xl font-bold">Acesso Administrativo</h3>
-                      <button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-md shadow-emerald-900/10"
-                      >
-                        {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> <span className="hidden sm:inline">Salvar</span></>}
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-neutral-400 uppercase ml-1">E-mail do Administrador</label>
-                        <div className="relative">
-                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                          <input
-                            type="email"
-                            value={shop.adminEmail || ''}
-                            onChange={(e) => setShop({ ...shop, adminEmail: e.target.value })}
-                            className="w-full pl-12 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-medium"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Senha do Painel</label>
-                        <div className="relative">
-                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                          <input
-                            type="password"
-                            value={shop.adminPassword || ''}
-                            onChange={(e) => setShop({ ...shop, adminPassword: e.target.value })}
-                            placeholder="••••••••"
-                            className="w-full pl-12 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-medium"
-                          />
-                        </div>
-                        <p className="text-[10px] text-neutral-400 ml-1 italic">Preencha apenas se desejar alterar a senha atual. Por segurança, a senha atual não é exibida.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-8 rounded-[2rem] border border-neutral-200 shadow-sm relative overflow-hidden">
+                  <div className="bg-white p-8 rounded-4xl border border-neutral-200 shadow-sm relative overflow-hidden">
                     {!hasFeature('page_customization') && (
                       <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6 text-center">
                         <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
@@ -1511,7 +1806,7 @@ export default function AdminPage() {
                         </p>
                         <Link
                           href={`/${slug}/admin/subscription`}
-                          className="bg-neutral-900 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-neutral-800 transition-all"
+                          className="bg-neutral-900 theme-bg text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-neutral-800 theme-bg-hover transition-all"
                         >
                           Fazer Upgrade
                         </Link>
@@ -1520,17 +1815,10 @@ export default function AdminPage() {
 
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-xl font-bold">Logotipo</h3>
-                      <button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-md shadow-emerald-900/10"
-                      >
-                        {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> <span className="hidden sm:inline">Salvar</span></>}
-                      </button>
                     </div>
                     <p className="text-neutral-400 text-xs mb-6">Recomendado: 500x500px (Máx. 5MB)</p>
 
-                    <div className="relative h-32 w-32 rounded-[2rem] overflow-hidden border border-neutral-100 mb-4 bg-neutral-50 flex flex-col items-center justify-center mx-auto shadow-sm">
+                    <div className="relative h-32 w-32 rounded-4xl overflow-hidden border border-neutral-100 mb-4 bg-neutral-50 flex flex-col items-center justify-center mx-auto shadow-sm">
                       {shop.logo ? (
                         <img src={shop.logo} alt="Logo" className="w-full h-full object-cover" />
                       ) : (
@@ -1550,7 +1838,7 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="bg-white p-8 rounded-[2rem] border border-neutral-200 shadow-sm relative overflow-hidden">
+                  <div className="bg-white p-8 rounded-4xl border border-neutral-200 shadow-sm relative overflow-hidden">
                     {!hasFeature('page_customization') && (
                       <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6 text-center">
                         <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
@@ -1562,7 +1850,7 @@ export default function AdminPage() {
                         </p>
                         <Link
                           href={`/${slug}/admin/subscription`}
-                          className="bg-neutral-900 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-neutral-800 transition-all"
+                          className="bg-neutral-900 theme-bg text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-neutral-800 theme-bg-hover transition-all"
                         >
                           Fazer Upgrade
                         </Link>
@@ -1570,13 +1858,6 @@ export default function AdminPage() {
                     )}
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-xl font-bold">Imagem de Capa</h3>
-                      <button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-md shadow-emerald-900/10"
-                      >
-                        {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> <span className="hidden sm:inline">Salvar</span></>}
-                      </button>
                     </div>
                     <p className="text-neutral-400 text-xs mb-6">Recomendado: 1920x1080px (Máx. 5MB)</p>
 
@@ -1637,13 +1918,13 @@ export default function AdminPage() {
       {/* Manual Booking Modal */}
       <AnimatePresence>
         {isBookingModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsBookingModalOpen(false)}
-              className="absolute inset-0 bg-neutral-900/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-neutral-900 theme-bg/60 backdrop-blur-sm"
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -1653,7 +1934,7 @@ export default function AdminPage() {
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center">
+                  <div className="w-10 h-10 bg-neutral-900 theme-bg rounded-xl flex items-center justify-center">
                     <Calendar className="text-white w-5 h-5" />
                   </div>
                   <h2 className="text-2xl font-bold tracking-tight">Novo Agendamento</h2>
@@ -1675,7 +1956,7 @@ export default function AdminPage() {
                       placeholder="Nome do cliente"
                       value={adminBookingData.customerName}
                       onChange={(e) => setAdminBookingData({ ...adminBookingData, customerName: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold"
+                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold"
                       required
                     />
                   </div>
@@ -1686,7 +1967,7 @@ export default function AdminPage() {
                       placeholder="(00) 00000-0000"
                       value={adminBookingData.customerPhone}
                       onChange={(e) => setAdminBookingData({ ...adminBookingData, customerPhone: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold"
+                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold"
                       required
                     />
                   </div>
@@ -1698,7 +1979,7 @@ export default function AdminPage() {
                     <select
                       value={adminBookingData.serviceId}
                       onChange={(e) => setAdminBookingData({ ...adminBookingData, serviceId: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold appearance-none"
+                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold appearance-none"
                       required
                     >
                       <option value="">Selecionar...</option>
@@ -1712,7 +1993,7 @@ export default function AdminPage() {
                     <select
                       value={adminBookingData.barberId}
                       onChange={(e) => setAdminBookingData({ ...adminBookingData, barberId: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold appearance-none"
+                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold appearance-none"
                       required
                     >
                       <option value="">Selecionar...</option>
@@ -1730,7 +2011,7 @@ export default function AdminPage() {
                       type="date"
                       value={adminBookingData.date}
                       onChange={(e) => setAdminBookingData({ ...adminBookingData, date: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold"
+                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold"
                       required
                     />
                   </div>
@@ -1739,7 +2020,7 @@ export default function AdminPage() {
                     <select
                       value={adminBookingData.time}
                       onChange={(e) => setAdminBookingData({ ...adminBookingData, time: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-bold appearance-none"
+                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold appearance-none"
                       disabled={!adminBookingData.barberId || !adminBookingData.date}
                       required
                     >
@@ -1759,7 +2040,7 @@ export default function AdminPage() {
                   <button
                     type="submit"
                     disabled={isBookingManual}
-                    className="w-full bg-neutral-900 text-white py-4 rounded-2xl font-bold hover:bg-neutral-800 transition-all shadow-xl active:scale-95 disabled:opacity-50"
+                    className="w-full bg-neutral-900 theme-bg text-white py-4 rounded-2xl font-bold hover:bg-neutral-800 theme-bg-hover transition-all shadow-xl active:scale-95 disabled:opacity-50"
                   >
                     {isBookingManual ? 'Agendando...' : 'Confirmar Agendamento'}
                   </button>
@@ -1787,3 +2068,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+export type __ForceModule = true;

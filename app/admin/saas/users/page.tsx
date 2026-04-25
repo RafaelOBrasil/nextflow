@@ -27,7 +27,7 @@ export default function SaaSUsersManagement() {
             key={user.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-neutral-200 shadow-sm flex flex-col items-center text-center"
+            className="bg-white p-6 md:p-8 rounded-4xl md:rounded-[2.5rem] border border-neutral-200 shadow-sm flex flex-col items-center text-center"
           >
             <div className="w-16 h-16 md:w-20 md:h-20 bg-neutral-100 rounded-2xl md:rounded-3xl flex items-center justify-center mb-4 md:mb-6 border border-neutral-200">
               <ShieldCheck className="w-8 h-8 md:w-10 md:h-10 text-neutral-900" />

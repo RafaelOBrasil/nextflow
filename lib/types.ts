@@ -5,6 +5,7 @@ export interface Service {
   duration: number;
   description?: string;
   active?: boolean;
+  autoAccept?: boolean;
 }
 
 export interface Barber {
@@ -26,7 +27,9 @@ export interface Appointment {
   customerName: string;
   customerPhone: string;
   serviceId: string;
+  service?: Service;
   barberId: string;
+  barber?: Barber;
   date: string;
   time: string;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
@@ -92,6 +95,7 @@ export interface BarberShop {
   adminPassword?: string;
   status?: 'active' | 'blocked' | 'trial' | 'expired';
   planId?: string;
+  primaryColor?: string;
   subscriptions?: Subscription[];
   appointmentInterval?: number;
   useDynamicInterval?: boolean;

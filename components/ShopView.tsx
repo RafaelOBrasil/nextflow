@@ -1,13 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Scissors, Calendar, Clock, MapPin, Phone, ChevronRight, CheckCircle2, User, Star, ShieldAlert, MessageSquare, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { BarberShop, Service, Barber, Appointment, Review } from '@/lib/types';
 import { usePlans } from '@/hooks/use-plans';
 import { useBarberData } from '@/hooks/use-barber-data';
-import { useSearchParams } from 'next/navigation';
+import { 
+  timeToMinutes, 
+  gerarIntervalosLivres, 
+  gerarHorariosDisponiveisDinamico 
+} from '@/lib/scheduling';
 
 interface ShopViewProps {
   shop: BarberShop;
@@ -40,10 +44,13 @@ export default function ShopView({ shop }: ShopViewProps) {
   const [reviewAppointmentId, setReviewAppointmentId] = useState<string | null>(null);
 
   const [mounted, setMounted] = useState(false);
-  
+  const [now, setNow] = useState<Date | null>(null);
+  const todayStr = now ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` : '';
+
   // Load user and recent shops from localStorage on mount
   useEffect(() => {
     setMounted(true);
+    setNow(new Date());
     const reviewId = searchParams?.get('review');
     if (reviewId) {
       // Check if this appointment exists and is completed
@@ -166,7 +173,7 @@ export default function ShopView({ shop }: ShopViewProps) {
         </p>
         <div className="mt-12 flex items-center gap-2 text-neutral-300">
           <Scissors className="w-5 h-5" />
-          <span className="font-bold tracking-widest text-xs uppercase">BarberFlow</span>
+          <span className="font-bold tracking-widest text-xs uppercase">Next Flow Barber</span>
         </div>
       </div>
     );
@@ -174,8 +181,8 @@ export default function ShopView({ shop }: ShopViewProps) {
 
   const currentPlan = plans.find(p => p.id === shop.planId) || plans[0];
   const currentMonthAppointments = (shop.appointments || []).filter(apt => {
+    if (!mounted || !now) return false;
     const aptDate = new Date(apt.date);
-    const now = new Date();
     return aptDate.getMonth() === now.getMonth() && aptDate.getFullYear() === now.getFullYear();
   }).length;
 
@@ -282,7 +289,7 @@ export default function ShopView({ shop }: ShopViewProps) {
               setSelectedTime('');
               setActiveTab('appointments');
             }}
-            className="w-full bg-neutral-900 text-white py-4 rounded-2xl font-bold hover:bg-neutral-800 transition-all active:scale-95"
+            className="w-full bg-neutral-900 theme-bg text-white py-4 rounded-2xl font-bold hover:bg-neutral-800 theme-bg-hover transition-all active:scale-95"
           >
             Ver Meus Agendamentos
           </button>
@@ -292,7 +299,16 @@ export default function ShopView({ shop }: ShopViewProps) {
   }
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 font-sans pb-20">
+    <div className="min-h-screen bg-white text-neutral-900 theme-text font-sans pb-20">
+      {shop.primaryColor && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          .theme-bg { background-color: ${shop.primaryColor} !important; color: #fff !important; border-color: ${shop.primaryColor} !important; }
+          .theme-bg-hover:hover { opacity: 0.9 !important; }
+          .theme-text { color: ${shop.primaryColor} !important; }
+          .theme-border { border-color: ${shop.primaryColor} !important; }
+        `}} />
+      )}
+
       {/* Banner */}
       <div className="relative h-[300px] w-full overflow-hidden">
         <img 
@@ -340,13 +356,13 @@ export default function ShopView({ shop }: ShopViewProps) {
         <div className="flex flex-wrap justify-center gap-2 md:gap-4 mb-8">
           <button
             onClick={() => setActiveTab('services')}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-6 py-3 rounded-2xl font-bold transition-all text-sm md:text-base ${activeTab === 'services' ? 'bg-neutral-900 text-white shadow-lg' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-6 py-3 rounded-2xl font-bold transition-all text-sm md:text-base ${activeTab === 'services' ? 'bg-neutral-900 theme-bg text-white shadow-lg' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}
           >
             <Scissors className="w-4 h-4 md:w-5 md:h-5" /> Serviços
           </button>
           <button
             onClick={() => setActiveTab('appointments')}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-6 py-3 rounded-2xl font-bold transition-all text-sm md:text-base ${activeTab === 'appointments' ? 'bg-neutral-900 text-white shadow-lg' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-6 py-3 rounded-2xl font-bold transition-all text-sm md:text-base ${activeTab === 'appointments' ? 'bg-neutral-900 theme-bg text-white shadow-lg' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}
           >
             <Calendar className="w-4 h-4 md:w-5 md:h-5" /> Meus Agendamentos
           </button>
@@ -379,13 +395,13 @@ export default function ShopView({ shop }: ShopViewProps) {
                             placeholder="(00) 00000-0000"
                             value={customerInfo.phone}
                             onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
-                            className="w-full px-5 py-4 rounded-2xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all"
+                            className="w-full px-5 py-4 rounded-2xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 theme-border transition-all"
                           />
                         </div>
                         <button 
                           onClick={checkPhoneAndContinue}
                           disabled={!customerInfo.phone}
-                          className="w-full bg-neutral-900 text-white py-5 rounded-2xl font-bold hover:bg-neutral-800 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:scale-100"
+                          className="w-full bg-neutral-900 theme-bg-hover text-white py-5 rounded-2xl font-bold hover:bg-neutral-800 theme-bg-hover transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:scale-100"
                         >
                           Continuar
                         </button>
@@ -423,19 +439,19 @@ export default function ShopView({ shop }: ShopViewProps) {
                             placeholder="Como devemos te chamar?"
                             value={customerInfo.name}
                             onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
-                            className="w-full px-5 py-4 rounded-2xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all"
+                            className="w-full px-5 py-4 rounded-2xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 theme-border transition-all"
                           />
                         </div>
                         <button 
                           onClick={handleLogin}
                           disabled={!customerInfo.name}
-                          className="w-full bg-neutral-900 text-white py-5 rounded-2xl font-bold hover:bg-neutral-800 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:scale-100"
+                          className="w-full bg-neutral-900 theme-bg-hover text-white py-5 rounded-2xl font-bold hover:bg-neutral-800 theme-bg-hover transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:scale-100"
                         >
                           Acessar Agendamento
                         </button>
                         <button 
                           onClick={() => setLoginStep('phone')}
-                          className="w-full text-neutral-400 text-xs font-bold hover:text-neutral-900 transition-all"
+                          className="w-full text-neutral-400 text-xs font-bold hover:text-neutral-900 theme-text transition-all"
                         >
                           Voltar
                         </button>
@@ -477,7 +493,7 @@ export default function ShopView({ shop }: ShopViewProps) {
                           <button
                             key={i}
                             onClick={() => setCurrentReviewIndex(i)}
-                            className={`w-1.5 h-1.5 rounded-full transition-all ${i === currentReviewIndex ? 'bg-neutral-900 w-4' : 'bg-neutral-200'}`}
+                            className={`w-1.5 h-1.5 rounded-full transition-all ${i === currentReviewIndex ? 'bg-neutral-900 theme-bg w-4' : 'bg-neutral-200'}`}
                           />
                         ))}
                       </div>
@@ -488,10 +504,10 @@ export default function ShopView({ shop }: ShopViewProps) {
             ) : (
               <>
                 {/* User Info Box */}
-                <div className="bg-neutral-50 p-4 md:p-6 rounded-[2rem] mb-8 border border-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="bg-neutral-50 p-4 md:p-6 rounded-4xl mb-8 border border-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1">Agendando para:</p>
-                    <h4 className="text-lg md:text-xl font-bold text-neutral-900">{customerInfo.name}</h4>
+                    <h4 className="text-lg md:text-xl font-bold text-neutral-900 theme-text">{customerInfo.name}</h4>
                     <p className="text-xs md:text-sm text-neutral-500">{customerInfo.phone}</p>
                   </div>
                   <button 
@@ -509,16 +525,16 @@ export default function ShopView({ shop }: ShopViewProps) {
                 {/* Booking Steps */}
                 <div className="space-y-6">
           {/* Step 1: Services */}
-          <div className={`bg-white rounded-3xl border ${step === 1 ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-100'} p-6 transition-all`}>
+          <div className={`bg-white rounded-3xl border ${step === 1 ? 'border-neutral-900 theme-border ring-1 ring-neutral-900' : 'border-neutral-100'} p-6 transition-all`}>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step > 1 ? 'bg-emerald-500 text-white' : 'bg-neutral-900 text-white'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step > 1 ? 'bg-emerald-500 text-white' : 'bg-neutral-900 theme-bg text-white'}`}>
                   {step > 1 ? <CheckCircle2 className="w-5 h-5" /> : '1'}
                 </div>
                 <h3 className="text-xl font-bold">Escolha o Serviço</h3>
               </div>
               {step > 1 && (
-                <button onClick={() => setStep(1)} className="text-neutral-400 text-sm hover:text-neutral-900 font-medium">Alterar</button>
+                <button onClick={() => setStep(1)} className="text-neutral-400 text-sm hover:text-neutral-900 theme-text font-medium">Alterar</button>
               )}
             </div>
 
@@ -531,15 +547,15 @@ export default function ShopView({ shop }: ShopViewProps) {
                       setSelectedService(service);
                       setStep(2);
                     }}
-                    className="flex items-center justify-between p-5 rounded-2xl border border-neutral-100 hover:border-neutral-900 hover:bg-neutral-50 transition-all text-left group"
+                    className="flex items-center justify-between p-5 rounded-2xl border border-neutral-100 hover:border-neutral-900 theme-border hover:bg-neutral-50 transition-all text-left group"
                   >
                     <div>
-                      <h4 className="font-bold group-hover:text-neutral-900">{service.name}</h4>
+                      <h4 className="font-bold group-hover:text-neutral-900 theme-text">{service.name}</h4>
                       <p className="text-sm text-neutral-400">{service.duration} min</p>
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="font-bold text-lg">R$ {service.price}</span>
-                      <ChevronRight className="w-5 h-5 text-neutral-300 group-hover:text-neutral-900" />
+                      <ChevronRight className="w-5 h-5 text-neutral-300 group-hover:text-neutral-900 theme-text" />
                     </div>
                   </button>
                 ))}
@@ -554,16 +570,16 @@ export default function ShopView({ shop }: ShopViewProps) {
           </div>
 
           {/* Step 2: Barber */}
-          <div className={`bg-white rounded-3xl border ${step === 2 ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-100'} p-6 transition-all`}>
+          <div className={`bg-white rounded-3xl border ${step === 2 ? 'border-neutral-900 theme-border ring-1 ring-neutral-900' : 'border-neutral-100'} p-6 transition-all`}>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step > 2 ? 'bg-emerald-500 text-white' : step < 2 ? 'bg-neutral-100 text-neutral-400' : 'bg-neutral-900 text-white'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step > 2 ? 'bg-emerald-500 text-white' : step < 2 ? 'bg-neutral-100 text-neutral-400' : 'bg-neutral-900 theme-bg text-white'}`}>
                   {step > 2 ? <CheckCircle2 className="w-5 h-5" /> : '2'}
                 </div>
                 <h3 className={`text-xl font-bold ${step < 2 ? 'text-neutral-300' : ''}`}>Escolha o Barbeiro</h3>
               </div>
               {step > 2 && (
-                <button onClick={() => setStep(2)} className="text-neutral-400 text-sm hover:text-neutral-900 font-medium">Alterar</button>
+                <button onClick={() => setStep(2)} className="text-neutral-400 text-sm hover:text-neutral-900 theme-text font-medium">Alterar</button>
               )}
             </div>
 
@@ -576,9 +592,9 @@ export default function ShopView({ shop }: ShopViewProps) {
                       setSelectedBarber(barber);
                       setStep(3);
                     }}
-                    className="p-4 md:p-5 rounded-2xl border border-neutral-100 hover:border-neutral-900 hover:bg-neutral-50 transition-all text-center group"
+                    className="p-4 md:p-5 rounded-2xl border border-neutral-100 hover:border-neutral-900 theme-border hover:bg-neutral-50 transition-all text-center group"
                   >
-                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden mx-auto mb-2 md:mb-3 border-2 border-transparent group-hover:border-neutral-900 transition-all">
+                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden mx-auto mb-2 md:mb-3 border-2 border-transparent group-hover:border-neutral-900 theme-border transition-all">
                       <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" />
                     </div>
                     <h4 className="font-bold text-sm md:text-base">{barber.name}</h4>
@@ -599,16 +615,16 @@ export default function ShopView({ shop }: ShopViewProps) {
 
 
           {/* Step 3: Date & Time */}
-          <div className={`bg-white rounded-3xl border ${step === 3 ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-100'} p-6 transition-all`}>
+          <div className={`bg-white rounded-3xl border ${step === 3 ? 'border-neutral-900 theme-border ring-1 ring-neutral-900' : 'border-neutral-100'} p-6 transition-all`}>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step > 3 ? 'bg-emerald-500 text-white' : step < 3 ? 'bg-neutral-100 text-neutral-400' : 'bg-neutral-900 text-white'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step > 3 ? 'bg-emerald-500 text-white' : step < 3 ? 'bg-neutral-100 text-neutral-400' : 'bg-neutral-900 theme-bg text-white'}`}>
                   {step > 3 ? <CheckCircle2 className="w-5 h-5" /> : '3'}
                 </div>
                 <h3 className={`text-xl font-bold ${step < 3 ? 'text-neutral-300' : ''}`}>Data e Horário</h3>
               </div>
               {step > 3 && (
-                <button onClick={() => setStep(3)} className="text-neutral-400 text-sm hover:text-neutral-900 font-medium">Alterar</button>
+                <button onClick={() => setStep(3)} className="text-neutral-400 text-sm hover:text-neutral-900 theme-text font-medium">Alterar</button>
               )}
             </div>
 
@@ -616,7 +632,8 @@ export default function ShopView({ shop }: ShopViewProps) {
               <div className="space-y-6">
                 <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
                   {Array.from({ length: 7 }).map((_, i) => {
-                    const date = new Date();
+                    if (!mounted || !now) return null;
+                    const date = new Date(now);
                     date.setDate(date.getDate() + i);
                     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                     const dayName = date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
@@ -635,10 +652,10 @@ export default function ShopView({ shop }: ShopViewProps) {
                         onClick={() => setSelectedDate(dateStr)}
                         className={`py-3 rounded-xl border text-sm font-bold transition-all flex flex-col items-center justify-center ${
                           selectedDate === dateStr 
-                            ? 'bg-neutral-900 border-neutral-900 text-white shadow-lg' 
+                            ? 'bg-neutral-900 theme-bg border-neutral-900 theme-border text-white shadow-lg' 
                             : isClosed 
                               ? 'bg-neutral-50 border-neutral-100 text-neutral-300 cursor-not-allowed'
-                              : 'border-neutral-100 hover:border-neutral-900'
+                              : 'border-neutral-100 hover:border-neutral-900 theme-border'
                         }`}
                       >
                         <span className="capitalize">{dayName}</span>
@@ -681,8 +698,6 @@ export default function ShopView({ shop }: ShopViewProps) {
                         apt => apt.date === selectedDate && apt.barberId === selectedBarber?.id && apt.status !== 'cancelled'
                       );
 
-                      const { timeToMinutes, gerarIntervalosLivres, gerarHorariosDisponiveisDinamico } = require('@/lib/scheduling');
-
                       let serviceDuration = shop.appointmentInterval || 30; // fallback para duração do slot
                       if (shop.useDynamicInterval && selectedService?.duration) {
                         serviceDuration = selectedService.duration;
@@ -704,16 +719,14 @@ export default function ShopView({ shop }: ShopViewProps) {
                       let freeIntervals = gerarIntervalosLivres(hours.open, hours.close, aptBlocks);
 
                       // Se for hoje, trimar os intervalos livres que já passaram da hora atual
-                      const now = new Date();
-                      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                      if (selectedDate === todayStr) {
+                      if (selectedDate === todayStr && now) {
                         const skipPastM = now.getHours() * 60 + now.getMinutes() + 10; // +10 min como margem de respiro opcional
-                        freeIntervals = freeIntervals.map((i: { start: number; }) => {
+                        freeIntervals = freeIntervals.map((i: any) => {
                           if (i.start < skipPastM) {
                             return { ...i, start: skipPastM };
                           }
                           return i;
-                        }).filter((i: { end: number; start: number; }) => i.end > i.start && (i.end - i.start) >= serviceDuration);
+                        }).filter((i: any) => i.end > i.start && (i.end - i.start) >= serviceDuration);
                       }
 
                       // Por padrão, mostra botões a cada 15 min de intervalo ou usando a própria base se não houver dinâmico. 
@@ -736,8 +749,8 @@ export default function ShopView({ shop }: ShopViewProps) {
                             }}
                             className={`py-3 rounded-xl border text-sm font-bold transition-all ${
                               selectedTime === time 
-                                ? 'bg-neutral-900 border-neutral-900 text-white' 
-                                : 'border-neutral-100 hover:border-neutral-900'
+                                ? 'bg-neutral-900 theme-bg border-neutral-900 theme-border text-white' 
+                                : 'border-neutral-100 hover:border-neutral-900 theme-border'
                             }`}
                           >
                             {time}
@@ -762,9 +775,9 @@ export default function ShopView({ shop }: ShopViewProps) {
           </div>
 
           {/* Step 4: Confirmation */}
-          <div className={`bg-white rounded-3xl border ${step === 4 ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-100'} p-6 transition-all`}>
+          <div className={`bg-white rounded-3xl border ${step === 4 ? 'border-neutral-900 theme-border ring-1 ring-neutral-900' : 'border-neutral-100'} p-6 transition-all`}>
             <div className="flex items-center gap-3 mb-6">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step < 4 ? 'bg-neutral-100 text-neutral-400' : 'bg-neutral-900 text-white'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step < 4 ? 'bg-neutral-100 text-neutral-400' : 'bg-neutral-900 theme-bg text-white'}`}>
                 4
               </div>
               <h3 className={`text-xl font-bold ${step < 4 ? 'text-neutral-300' : ''}`}>Seus Dados</h3>
@@ -786,7 +799,7 @@ export default function ShopView({ shop }: ShopViewProps) {
                 <button 
                   onClick={handleBooking}
                   disabled={isBooking}
-                  className="w-full bg-neutral-900 text-white py-5 rounded-2xl font-bold hover:bg-neutral-800 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-neutral-900 theme-bg-hover text-white py-5 rounded-2xl font-bold hover:bg-neutral-800 theme-bg-hover transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isBooking ? 'Agendando...' : 'Finalizar Agendamento'}
                 </button>
@@ -801,14 +814,14 @@ export default function ShopView({ shop }: ShopViewProps) {
     <div className="space-y-6">
             {!isLoggedIn ? (
               <div className="bg-white rounded-[2.5rem] p-12 text-center border border-neutral-100 shadow-xl">
-                <div className="w-20 h-20 bg-neutral-900 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-neutral-900/20">
+                <div className="w-20 h-20 bg-neutral-900 theme-bg rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-neutral-900/20">
                   <Scissors className="text-white w-10 h-10" />
                 </div>
                 <h2 className="text-2xl font-bold mb-2 tracking-tight">Acesse seus agendamentos</h2>
                 <p className="text-neutral-500 mb-8">Identifique-se na aba &quot;Serviços&quot; para visualizar seu histórico</p>
                 <button 
                   onClick={() => setActiveTab('services')}
-                  className="bg-neutral-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-neutral-800 transition-all"
+                  className="bg-neutral-900 theme-bg-hover text-white px-8 py-4 rounded-2xl font-bold hover:bg-neutral-800 theme-bg-hover transition-all"
                 >
                   Ir para Identificação
                 </button>
@@ -819,13 +832,13 @@ export default function ShopView({ shop }: ShopViewProps) {
             <div className="flex bg-neutral-100 p-1 rounded-2xl w-full sm:w-fit mx-auto mb-8">
               <button
                 onClick={() => setAppointmentFilter('open')}
-                className={`flex-1 sm:flex-none px-4 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all ${appointmentFilter === 'open' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}
+                className={`flex-1 sm:flex-none px-4 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all ${appointmentFilter === 'open' ? 'bg-white text-neutral-900 theme-text shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}
               >
                 Em Aberto ({openAppointments.length})
               </button>
               <button
                 onClick={() => setAppointmentFilter('completed')}
-                className={`flex-1 sm:flex-none px-4 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all ${appointmentFilter === 'completed' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}
+                className={`flex-1 sm:flex-none px-4 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all ${appointmentFilter === 'completed' ? 'bg-white text-neutral-900 theme-text shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}
               >
                 Concluídos ({completedAppointments.length})
               </button>
@@ -853,7 +866,7 @@ export default function ShopView({ shop }: ShopViewProps) {
                     >
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-neutral-900 rounded-2xl flex items-center justify-center text-white">
+                          <div className="w-12 h-12 bg-neutral-900 theme-bg rounded-2xl flex items-center justify-center text-white">
                             <Scissors className="w-6 h-6" />
                           </div>
                           <div>
@@ -888,7 +901,7 @@ export default function ShopView({ shop }: ShopViewProps) {
                                 setReviewAppointmentId(apt.id);
                                 setShowReviewModal(true);
                               }}
-                              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white rounded-xl text-xs font-bold hover:bg-neutral-800 transition-all"
+                              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 theme-bg text-white rounded-xl text-xs font-bold hover:bg-neutral-800 theme-bg-hover transition-all"
                             >
                               <Star className="w-3 h-3" /> Avaliar
                             </button>
@@ -909,7 +922,7 @@ export default function ShopView({ shop }: ShopViewProps) {
   <div className="max-w-xl mx-auto py-8 text-center">
         <button 
           onClick={() => router.push('/admin/saas')}
-          className="text-neutral-300 hover:text-neutral-900 transition-colors text-xs font-bold uppercase tracking-widest"
+          className="text-neutral-300 hover:text-neutral-900 theme-text transition-colors text-xs font-bold uppercase tracking-widest"
           aria-label="Admin"
         >
           Painel Admin
@@ -928,7 +941,7 @@ export default function ShopView({ shop }: ShopViewProps) {
             >
               <button 
                 onClick={() => setShowReviewModal(false)}
-                className="absolute top-6 right-6 text-neutral-400 hover:text-neutral-900"
+                className="absolute top-6 right-6 text-neutral-400 hover:text-neutral-900 theme-text"
               >
                 <Scissors className="w-5 h-5 rotate-90" />
               </button>
@@ -961,14 +974,14 @@ export default function ShopView({ shop }: ShopViewProps) {
                     onChange={(e) => setReviewComment(e.target.value)}
                     placeholder="Conte como foi sua experiência..."
                     rows={4}
-                    className="w-full px-4 py-3 rounded-2xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-medium resize-none"
+                    className="w-full px-4 py-3 rounded-2xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium resize-none"
                   />
                 </div>
 
                 <button 
                   onClick={handleReviewSubmit}
                   disabled={!reviewComment.trim()}
-                  className="w-full bg-neutral-900 text-white py-5 rounded-2xl font-bold hover:bg-neutral-800 transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:scale-100"
+                  className="w-full bg-neutral-900 theme-bg text-white py-5 rounded-2xl font-bold hover:bg-neutral-800 theme-bg-hover transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:scale-100"
                 >
                   Enviar Avaliação <Send className="w-5 h-5" />
                 </button>

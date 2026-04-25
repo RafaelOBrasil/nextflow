@@ -10,7 +10,7 @@ export const getSocket = () => {
   if (!socket) {
     socket = io({
       path: '/api/socket',
-      autoConnect: false,
+      autoConnect: true,
     });
   }
   return socket;

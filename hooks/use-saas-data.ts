@@ -23,6 +23,11 @@ export function useSaaSData() {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
 
   const fetchTickets = useCallback(async () => {
     try {
@@ -161,11 +166,13 @@ export function useSaaSData() {
       return acc + (shop.status === 'active' ? (plan?.price || 0) : 0);
     }, 0);
 
+    const currentMonth = now ? now.getMonth() : -1;
+
     return {
       totalMRR,
       activeShops: activeShopsCount,
       totalAppointments: shops.reduce((acc, s) => acc + (s.appointments?.length || 0), 0),
-      newShopsThisMonth: shops.filter(s => s.createdAt && new Date(s.createdAt).getMonth() === new Date().getMonth()).length,
+      newShopsThisMonth: shops.filter(s => s.createdAt && new Date(s.createdAt).getMonth() === currentMonth).length,
       churnRate: 2.5,
       revenueByMonth: [
         { month: 'Jan', amount: totalMRR * 0.8 },

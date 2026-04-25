@@ -14,7 +14,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
         services: true,
         barbers: true,
         appointments: {
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
+          include: { 
+            service: true,
+            barber: true
+          }
         },
         reviews: {
           orderBy: { createdAt: 'desc' }
@@ -75,7 +79,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
     const allowedFields = [
       'name', 'description', 'address', 'phone', 'document', 
       'logo', 'banner', 'status', 'planId', 'openingHours',
-      'appointmentInterval', 'useDynamicInterval'
+      'appointmentInterval', 'useDynamicInterval', 'primaryColor'
     ];
     
     const updateData: any = {};
@@ -130,8 +134,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
       updateData.services = {
         upsert: body.services.map((s: any) => ({
           where: { id: s.id },
-          update: { name: s.name, price: s.price, duration: s.duration, description: s.description, active: s.active },
-          create: { id: s.id, name: s.name, price: s.price, duration: s.duration, description: s.description, active: s.active }
+          update: { name: s.name, price: s.price, duration: s.duration, description: s.description, active: s.active, autoAccept: s.autoAccept },
+          create: { id: s.id, name: s.name, price: s.price, duration: s.duration, description: s.description, active: s.active, autoAccept: s.autoAccept }
         }))
       };
     }
