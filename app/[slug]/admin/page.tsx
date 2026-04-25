@@ -571,10 +571,9 @@ export default function AdminPage() {
 
   // Computations for Finance and Dashboard
   const allApts = shop.appointments || [];
-  const validApts = allApts.filter(a => a.status === 'confirmed' || a.status === 'completed');
+  const validApts = allApts.filter(a => a.status === 'confirmed' || a.status === 'pending');
   const earningsConfirmed = validApts.reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
-  const earningsConcluido = allApts.filter(a => a.status === 'completed').reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
-  const earningsPending = allApts.filter(a => a.status === 'pending').reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
+  const earningsCompleted = allApts.filter(a => a.status === 'completed').reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
   const earningsCancelled = allApts.filter(a => a.status === 'cancelled').reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
 
   const todayStr = now ? now.toISOString().split('T')[0] : '';
@@ -714,7 +713,7 @@ export default function AdminPage() {
             <div className="w-8 h-8 bg-neutral-900 theme-bg rounded-lg flex items-center justify-center">
               <Scissors className="text-white w-5 h-5" />
             </div>
-            <span className="font-bold text-lg tracking-tight">Next Flow Barber</span>
+            <span className="font-bold text-lg tracking-tight">BarberFlow</span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden p-2 hover:bg-neutral-100 rounded-lg">
             <X className="w-6 h-6" />
@@ -844,7 +843,7 @@ export default function AdminPage() {
                     </div>
                     <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Confirmados</h3>
                     <p className="text-3xl font-bold text-emerald-600 relative z-10">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsConfirmed+earningsConcluido)}
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsCompleted)}
                     </p>
                   </div>
                   <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
@@ -858,7 +857,7 @@ export default function AdminPage() {
                     </div>
                     <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Estimados (Pendentes)</h3>
                     <p className="text-3xl font-bold text-amber-600 relative z-10">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsPending)}
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsConfirmed)}
                     </p>
                   </div>
                   <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
