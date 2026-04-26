@@ -88,18 +88,18 @@ export function useSaaSData() {
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          setSuperUsers(parsed.superUsers || [{ id: 'admin', name: 'SaaS Owner', email: 'owner@barberflow.com', role: 'admin' }]);
+          setSuperUsers(parsed.superUsers || [{ id: 'admin', name: 'SaaS Owner', email: 'owner@nextflowbarber.com', role: 'admin' }]);
         } catch (e) {
           console.error('Error parsing SaaS global data');
         }
       } else {
         // Initial defaults
-        setSuperUsers([{ id: 'admin', name: 'SaaS Owner', email: 'owner@barberflow.com', role: 'admin' }]);
+        setSuperUsers([{ id: 'admin', name: 'SaaS Owner', email: 'owner@nextflowbarber.com', role: 'admin' }]);
         
         localStorage.setItem(SAAS_STORAGE_KEY, JSON.stringify({
           payments: [],
           tickets: [],
-          superUsers: [{ id: 'admin', name: 'SaaS Owner', email: 'owner@barberflow.com', role: 'admin' }]
+          superUsers: [{ id: 'admin', name: 'SaaS Owner', email: 'owner@nextflowbarber.com', role: 'admin' }]
         }));
       }
     }

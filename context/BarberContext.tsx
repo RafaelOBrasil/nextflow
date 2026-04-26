@@ -13,7 +13,7 @@ interface BarberContextType {
   updateAppointmentStatus: (slug: string, appointmentId: string, status: Appointment['status']) => Promise<void>;
   addReview: (slug: string, review: any) => Promise<any>;
   getShopBySlug: (slug: string) => BarberShop | undefined;
-  fetchShopBySlug: (slug: string) => Promise<BarberShop | null>;
+  fetchShopBySlug: (slug: string, silent?: boolean) => Promise<BarberShop | null>;
   fetchShops: () => Promise<void>;
 }
 
@@ -118,9 +118,9 @@ export function BarberProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const fetchShopBySlug = useCallback(async (slug: string) => {
+  const fetchShopBySlug = useCallback(async (slug: string, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await fetch(`/api/shops/${slug}`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
@@ -141,7 +141,7 @@ export function BarberProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Failed to fetch shop:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
     return null;
   }, []);

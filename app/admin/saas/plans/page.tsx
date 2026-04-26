@@ -255,7 +255,7 @@ export default function SaaSPlansManagement() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white rounded-4xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-neutral-100 p-6 flex items-center justify-between z-10">
                 <h3 className="text-xl font-bold">{editingPlan ? 'Editar Plano' : 'Novo Plano'}</h3>
@@ -389,7 +389,7 @@ export default function SaaSPlansManagement() {
                 </div>
               </div>
 
-              <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 rounded-b-4xl flex justify-end gap-3">
+              <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 rounded-b-[2rem] flex justify-end gap-3">
                 <button 
                   onClick={handleCloseModal}
                   className="px-6 py-3 rounded-xl font-bold text-neutral-600 hover:bg-neutral-200 transition-all"
@@ -410,7 +410,7 @@ export default function SaaSPlansManagement() {
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {planToDelete && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -422,7 +422,7 @@ export default function SaaSPlansManagement() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white rounded-4xl shadow-2xl w-full max-w-md p-8 text-center"
+              className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8 text-center"
             >
               <div className="w-16 h-16 bg-rose-100 rounded-2xl flex items-center justify-center text-rose-600 mx-auto mb-6">
                 <Trash2 className="w-8 h-8" />
@@ -460,7 +460,7 @@ export default function SaaSPlansManagement() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-100 px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-white font-bold ${
+            className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-white font-bold ${
               toast.type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'
             }`}
           >

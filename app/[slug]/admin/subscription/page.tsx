@@ -193,7 +193,7 @@ export default function SubscriptionPage() {
           </p>
           
           {/* Interval Toggle */}
-          <div className="inline-flex items-center p-1.5 bg-white rounded-4xl border border-neutral-200 shadow-xl mb-8">
+          <div className="inline-flex items-center p-1.5 bg-white rounded-[2rem] border border-neutral-200 shadow-xl mb-8">
             <button
               onClick={() => setInterval('month')}
               className={`px-8 py-3 rounded-2xl text-sm font-bold transition-all ${
@@ -231,7 +231,7 @@ export default function SubscriptionPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ delay: i * 0.1 }}
-                  className={`bg-white rounded-[3rem] p-10 border-2 flex flex-col relative transition-all duration-500 hover:-translate-y-2 ${
+                  className={`bg-white rounded-[3rem] p-10 border-2 flex flex-col relative transition-all duration-500 hover:translate-y-[-8px] ${
                     isCurrentPlan 
                       ? 'border-neutral-900 shadow-2xl shadow-neutral-900/10' 
                       : plan.isPopular 
@@ -276,7 +276,7 @@ export default function SubscriptionPage() {
                     </p>
                   </div>
 
-                  <div className="space-y-5 mb-12 grow">
+                  <div className="space-y-5 mb-12 flex-grow">
                     <p className="text-[10px] font-black text-neutral-300 uppercase tracking-[0.2em] mb-2">O que está incluso</p>
                     {allFeatures.map((feature) => {
                       const hasFeature = plan.features.includes(feature.key);
@@ -299,7 +299,7 @@ export default function SubscriptionPage() {
                   <button
                     onClick={() => handleSubscribe(plan.id, plan.price, plan.name)}
                     disabled={isDisabled || loading}
-                    className={`w-full py-5 rounded-3xl font-black transition-all flex items-center justify-center gap-3 text-lg active:scale-95 ${
+                    className={`w-full py-5 rounded-[1.5rem] font-black transition-all flex items-center justify-center gap-3 text-lg active:scale-95 ${
                       isCurrentPlan
                         ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
                         : isDisabled
@@ -373,7 +373,7 @@ export default function SubscriptionPage() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-100 px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-white font-bold ${
+            className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-white font-bold ${
               toast.type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'
             }`}
           >

@@ -16,6 +16,13 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Next Flow Barber",
   description: "Sistema de agendamento e gestão para barbearias profissionais.",
+  manifest: "/manifest.json",
+  themeColor: "#171717",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Next Flow Barber",
+  },
 };
 
 export default function RootLayout({

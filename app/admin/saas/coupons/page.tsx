@@ -136,7 +136,7 @@ export default function SaaSReportsCoupons() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className={`bg-white rounded-4xl border border-neutral-200 p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden ${!coupon.active ? 'opacity-60' : ''}`}
+            className={`bg-white rounded-[2rem] border border-neutral-200 p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden ${!coupon.active ? 'opacity-60' : ''}`}
           >
             <div className="flex items-start justify-between mb-4">
               <div className="w-12 h-12 bg-neutral-100 rounded-2xl flex items-center justify-center text-neutral-900 group-hover:bg-neutral-900 group-hover:text-white transition-all">
@@ -208,7 +208,7 @@ export default function SaaSReportsCoupons() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white rounded-4xl shadow-2xl w-full max-w-lg overflow-hidden"
+              className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden"
             >
               <div className="p-6 border-b border-neutral-100 flex items-center justify-between">
                 <h3 className="text-xl font-bold">{editingCoupon ? 'Editar Cupom' : 'Novo Cupom'}</h3>
@@ -321,7 +321,7 @@ export default function SaaSReportsCoupons() {
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {couponToDelete && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -333,7 +333,7 @@ export default function SaaSReportsCoupons() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white rounded-4xl shadow-2xl w-full max-w-md p-8 text-center"
+              className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8 text-center"
             >
               <div className="w-16 h-16 bg-rose-100 rounded-2xl flex items-center justify-center text-rose-600 mx-auto mb-6">
                 <Trash2 className="w-8 h-8" />
@@ -371,7 +371,7 @@ export default function SaaSReportsCoupons() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-100 px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-white font-bold ${
+            className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-white font-bold ${
               toast.type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'
             }`}
           >

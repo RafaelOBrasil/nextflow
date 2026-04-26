@@ -93,7 +93,7 @@ export default function ShopDetailsPage() {
             <div className="absolute top-0 right-0 w-64 h-64 bg-neutral-50 rounded-full -translate-y-1/2 translate-x-1/2 -z-10" />
             
             <div className="flex flex-col md:flex-row md:items-center gap-8 mb-10">
-              <div className="w-24 h-24 bg-neutral-100 rounded-4xl flex items-center justify-center font-bold text-neutral-400 border border-neutral-200 shrink-0 text-4xl shadow-inner">
+              <div className="w-24 h-24 bg-neutral-100 rounded-[2rem] flex items-center justify-center font-bold text-neutral-400 border border-neutral-200 shrink-0 text-4xl shadow-inner">
                 {shop.name.charAt(0)}
               </div>
               <div>

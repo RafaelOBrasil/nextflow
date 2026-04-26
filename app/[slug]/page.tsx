@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useBarberData } from '@/hooks/use-barber-data';
 import ShopView from '@/components/ShopView';
+import InstallPWA from '@/components/InstallPWA';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { Scissors } from 'lucide-react';
@@ -84,6 +85,7 @@ export default function ShopPage() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-white"><Scissors className="animate-spin" /></div>}>
       <ShopView shop={shop} />
+      <InstallPWA />
     </Suspense>
   );
 }

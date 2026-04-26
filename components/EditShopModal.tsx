@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { BarberShop, Plan } from '@/lib/types';
 import { X } from 'lucide-react';
+import { maskPhone } from '@/lib/utils';
 
 interface EditShopModalProps {
   shop: BarberShop;
@@ -78,7 +79,7 @@ export default function EditShopModal({ shop, plans, onClose, onSave }: EditShop
             <input
               type="text"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, phone: maskPhone(e.target.value) })}
               className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
             />
           </div>

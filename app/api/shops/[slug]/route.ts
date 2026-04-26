@@ -202,7 +202,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
       include: {
         services: true,
         barbers: true,
-        appointments: true,
+        appointments: {
+          include: {
+            service: true,
+            barber: true
+          }
+        },
         reviews: true,
         users: true,
         plan: true,
@@ -290,7 +295,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
       include: {
         services: true,
         barbers: true,
-        appointments: true,
+        appointments: {
+          include: {
+            service: true,
+            barber: true
+          }
+        },
         reviews: true,
         users: true,
         plan: true,

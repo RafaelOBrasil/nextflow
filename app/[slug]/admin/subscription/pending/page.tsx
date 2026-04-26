@@ -23,7 +23,7 @@ export default function SubscriptionPendingPage() {
 
   return (
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-4xl border border-neutral-200 shadow-xl text-center max-w-md w-full">
+      <div className="bg-white p-8 rounded-[2rem] border border-neutral-200 shadow-xl text-center max-w-md w-full">
         <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <Clock className="text-amber-600 w-10 h-10" />
         </div>

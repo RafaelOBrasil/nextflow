@@ -10,7 +10,12 @@ export async function GET() {
       include: {
         services: true,
         barbers: true,
-        appointments: true,
+        appointments: {
+          include: {
+            service: true,
+            barber: true
+          }
+        },
         reviews: true,
         plan: true,
         users: true,
@@ -140,7 +145,12 @@ export async function POST(request: Request) {
       include: {
         services: true,
         barbers: true,
-        appointments: true,
+        appointments: {
+          include: {
+            service: true,
+            barber: true
+          }
+        },
         reviews: true,
         subscriptions: true
       }

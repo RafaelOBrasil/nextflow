@@ -12,6 +12,7 @@ import {
   gerarIntervalosLivres, 
   gerarHorariosDisponiveisDinamico 
 } from '@/lib/scheduling';
+import { maskPhone } from '@/lib/utils';
 
 interface ShopViewProps {
   shop: BarberShop;
@@ -394,7 +395,7 @@ export default function ShopView({ shop }: ShopViewProps) {
                             type="tel" 
                             placeholder="(00) 00000-0000"
                             value={customerInfo.phone}
-                            onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
+                            onChange={(e) => setCustomerInfo({ ...customerInfo, phone: maskPhone(e.target.value) })}
                             className="w-full px-5 py-4 rounded-2xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 theme-border transition-all"
                           />
                         </div>
@@ -504,7 +505,7 @@ export default function ShopView({ shop }: ShopViewProps) {
             ) : (
               <>
                 {/* User Info Box */}
-                <div className="bg-neutral-50 p-4 md:p-6 rounded-4xl mb-8 border border-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="bg-neutral-50 p-4 md:p-6 rounded-[2rem] mb-8 border border-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1">Agendando para:</p>
                     <h4 className="text-lg md:text-xl font-bold text-neutral-900 theme-text">{customerInfo.name}</h4>

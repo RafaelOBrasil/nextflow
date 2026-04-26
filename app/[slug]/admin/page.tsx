@@ -9,6 +9,8 @@ import {
   timeToMinutes
 } from '@/lib/scheduling';
 import { useParams, useRouter } from 'next/navigation';
+import { maskPhone } from '@/lib/utils';
+import InstallPWA from '@/components/InstallPWA';
 import {
   LayoutDashboard,
   Settings,
@@ -68,6 +70,9 @@ export default function AdminPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showExpiredModal, setShowExpiredModal] = useState(false);
   const [appointmentFilter, setAppointmentFilter] = useState<'pending_confirmed' | 'completed' | 'cancelled'>('pending_confirmed');
+  const [dateFilterType, setDateFilterType] = useState<'today' | 'week' | 'month' | 'custom'>('month');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [adminBookingData, setAdminBookingData] = useState({
     customerName: '',
@@ -157,6 +162,15 @@ export default function AdminPage() {
       isMounted = false;
     };
   }, [slug, mounted, getShopBySlug, fetchShopBySlug]);
+
+  useEffect(() => {
+    if (mounted && slug && isLoggedIn) {
+      const interval = setInterval(() => {
+        fetchShopBySlug(slug, true);
+      }, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [mounted, slug, isLoggedIn, fetchShopBySlug]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -571,72 +585,152 @@ export default function AdminPage() {
 
   // Computations for Finance and Dashboard
   const allApts = shop.appointments || [];
-  const validApts = allApts.filter(a => a.status === 'confirmed' || a.status === 'pending');
-  const earningsConfirmed = validApts.reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
-  const earningsCompleted = allApts.filter(a => a.status === 'completed').reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
-  const earningsCancelled = allApts.filter(a => a.status === 'cancelled').reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
-
-  const todayStr = now ? now.toISOString().split('T')[0] : '';
   
-  // Faturamento
-  const todayEarnings = validApts.filter(a => a.date === todayStr).reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
-  
-  const currentMonth = now ? now.getMonth() : 0;
-  const currentYear = now ? now.getFullYear() : 0;
-  const monthEarnings = validApts.filter(a => {
-    const d = new Date(a.date);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  }).reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
+  const getAptPrice = (apt: Appointment) => {
+    if (apt.service?.price !== undefined) return apt.service.price;
+    const srv = shop.services?.find(s => s.id === apt.serviceId);
+    return srv?.price || 0;
+  };
 
-  // Time limit for week: check if in last 7 days from today
-  const weekEarnings = validApts.filter(a => {
-    if (!now) return false;
-    const aptDate = new Date(a.date);
-    const msDiff = now.getTime() - aptDate.getTime();
-    return msDiff >= 0 && msDiff <= 7 * 24 * 60 * 60 * 1000;
-  }).reduce((acc, curr) => acc + (curr.service?.price || 0), 0);
+  const getAppointmentsInRange = (apts: Appointment[], type: 'today' | 'week' | 'month' | 'custom', start?: string, end?: string) => {
+    if (!now) return [];
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return apts.filter(a => {
+      if (!a.date) return false;
+      const [y, m, d] = a.date.split('-').map(Number);
+      const aptDate = new Date(y, m - 1, d);
+
+      if (type === 'today') {
+        return aptDate.getTime() === today.getTime();
+      }
+      if (type === 'week') {
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        return aptDate >= sevenDaysAgo && aptDate <= today;
+      }
+      if (type === 'month') {
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        return aptDate >= firstDayOfMonth && aptDate <= lastDayOfMonth;
+      }
+      if (type === 'custom') {
+        if (!start || !end) return true;
+        const [sy, sm, sd] = start.split('-').map(Number);
+        const [ey, em, ed] = end.split('-').map(Number);
+        const startDate = new Date(sy, sm - 1, sd);
+        const endDate = new Date(ey, em - 1, ed);
+        return aptDate >= startDate && aptDate <= endDate;
+      }
+      return true;
+    });
+  };
+
+  const filteredByDateApts = getAppointmentsInRange(allApts, dateFilterType, customStartDate, customEndDate);
+  
+  // Ganhos Confirmados (Concluídos)
+  const validApts = filteredByDateApts.filter(a => a.status === 'completed');
+  const earningsCompleted = validApts.reduce((acc, curr) => acc + getAptPrice(curr), 0);
+  
+  // Ganhos Estimados (Agendados / Pendentes)
+  const validEstimates = filteredByDateApts.filter(a => a.status === 'confirmed' || a.status === 'pending');
+  const earningsEstimated = validEstimates.reduce((acc, curr) => acc + getAptPrice(curr), 0);
+
+  // Ganhos Cancelados (Receita Perdida)
+  const earningsCancelled = filteredByDateApts.filter(a => a.status === 'cancelled').reduce((acc, curr) => acc + getAptPrice(curr), 0);
+
+  // Faturamento (Inclui concluídos, confirmados e pendentes)
+  const revenueApts = filteredByDateApts.filter(a => a.status === 'completed' || a.status === 'confirmed' || a.status === 'pending');
+  const totalRevenue = revenueApts.reduce((acc, curr) => acc + getAptPrice(curr), 0);
+
+  // Stats fixas (Sempre baseadas nas réguas temporais padrão para os cards, mas respeitando "últimos X dias")
+  const todayStr = now ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` : '';
+  const todayEarnings = getAppointmentsInRange(allApts, 'today').filter(a => a.status !== 'cancelled').reduce((acc, curr) => acc + getAptPrice(curr), 0);
+  const weekEarnings = getAppointmentsInRange(allApts, 'week').filter(a => a.status !== 'cancelled').reduce((acc, curr) => acc + getAptPrice(curr), 0);
+  const monthEarnings = getAppointmentsInRange(allApts, 'month').filter(a => a.status !== 'cancelled').reduce((acc, curr) => acc + getAptPrice(curr), 0);
 
   // Tempo médio
-  const totalDuration = validApts.reduce((acc, curr) => acc + (curr.service?.duration || 0), 0);
+  const totalDuration = validApts.reduce((acc, curr) => {
+    const duration = curr.service?.duration || shop.services?.find(s => s.id === curr.serviceId)?.duration || 0;
+    return acc + duration;
+  }, 0);
   const avgDuration = validApts.length > 0 ? Math.round(totalDuration / validApts.length) : 0;
 
-  // Serviços mais realizados
+  // Serviços mais realizados (Baseado no filtro de data)
   const serviceCountMap: Record<string, {name: string, count: number, total: number}> = {};
-  validApts.forEach(a => {
-    if (a.service) {
-      if (!serviceCountMap[a.serviceId]) {
-        serviceCountMap[a.serviceId] = { name: a.service.name, count: 0, total: 0 };
+  revenueApts.forEach(a => {
+    const serviceId = a.serviceId;
+    const service = a.service || shop.services?.find(s => s.id === serviceId);
+    if (service) {
+      if (!serviceCountMap[serviceId]) {
+        serviceCountMap[serviceId] = { name: service.name, count: 0, total: 0 };
       }
-      serviceCountMap[a.serviceId].count += 1;
-      serviceCountMap[a.serviceId].total += a.service.price;
+      serviceCountMap[serviceId].count += 1;
+      serviceCountMap[serviceId].total += (service.price || 0);
     }
   });
   const topServices = Object.values(serviceCountMap).sort((a,b) => b.count - a.count);
 
-  // Produtividade por Barbeiro
-  const barberMetricsMap: Record<string, {name: string, count: number, total: number}> = {};
-  validApts.forEach(a => {
-    if (a.barber) {
-      if (!barberMetricsMap[a.barberId]) {
-        barberMetricsMap[a.barberId] = { name: a.barber.name, count: 0, total: 0 };
+  // Produtividade por Barbeiro (Baseado no filtro de data)
+  // Inclui Valor Gerado (concluidos), Valor Potencial (pendentes+confirmados) e Valor Cancelado
+  const barberMetricsMap: Record<string, {
+    name: string, 
+    completedCount: number, 
+    completedTotal: number,
+    potentialCount: number,
+    potentialTotal: number,
+    cancelledCount: number,
+    cancelledTotal: number
+  }> = {};
+
+  filteredByDateApts.forEach(a => {
+    const barberId = a.barberId;
+    const barber = a.barber || shop.barbers?.find(b => b.id === barberId);
+    const service = a.service || shop.services?.find(s => s.id === a.serviceId);
+    const price = getAptPrice(a);
+    
+    if (barber) {
+      if (!barberMetricsMap[barberId]) {
+        barberMetricsMap[barberId] = { 
+          name: barber.name, 
+          completedCount: 0, 
+          completedTotal: 0,
+          potentialCount: 0,
+          potentialTotal: 0,
+          cancelledCount: 0,
+          cancelledTotal: 0
+        };
       }
-      barberMetricsMap[a.barberId].count += 1;
-      barberMetricsMap[a.barberId].total += (a.service?.price || 0);
+      
+      if (a.status === 'completed') {
+        barberMetricsMap[barberId].completedCount += 1;
+        barberMetricsMap[barberId].completedTotal += price;
+      } else if (a.status === 'pending' || a.status === 'confirmed') {
+        barberMetricsMap[barberId].potentialCount += 1;
+        barberMetricsMap[barberId].potentialTotal += price;
+      } else if (a.status === 'cancelled') {
+        barberMetricsMap[barberId].cancelledCount += 1;
+        barberMetricsMap[barberId].cancelledTotal += price;
+      }
     }
   });
-  const barberMetrics = Object.values(barberMetricsMap).sort((a,b) => b.total - a.total);
+  const barberMetrics = Object.values(barberMetricsMap).sort((a,b) => b.completedTotal - a.completedTotal);
 
-  // Dados do grafico de 7 ultimos dias
+  // Dados do grafico de 7 ultimos dias (Sempre 7 dias para visualização consistente)
   const last7Days = Array.from({length: 7}).map((_, i) => {
     if (!now) return '';
-    const d = new Date(now.getTime());
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     d.setDate(d.getDate() - (6 - i));
-    return d.toISOString().split('T')[0];
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }).filter(Boolean);
+
   const dailyEarningsChart = last7Days.map(date => {
     return {
       date: date.substring(8,10) + '/' + date.substring(5,7),
-      Ganhos: validApts.filter(a => a.date === date).reduce((acc, curr) => acc + (curr.service?.price || 0), 0)
+      Ganhos: allApts.filter(a => a.date === date && (a.status === 'completed' || a.status === 'confirmed' || a.status === 'pending')).reduce((acc, curr) => acc + getAptPrice(curr), 0)
     }
   });
 
@@ -713,7 +807,7 @@ export default function AdminPage() {
             <div className="w-8 h-8 bg-neutral-900 theme-bg rounded-lg flex items-center justify-center">
               <Scissors className="text-white w-5 h-5" />
             </div>
-            <span className="font-bold text-lg tracking-tight">BarberFlow</span>
+            <span className="font-bold text-lg tracking-tight">Next Flow Barber</span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden p-2 hover:bg-neutral-100 rounded-lg">
             <X className="w-6 h-6" />
@@ -829,9 +923,47 @@ export default function AdminPage() {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-8"
               >
+                {/* Date Filter Container */}
+                <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm mt-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h3 className="font-bold text-lg text-neutral-900">Visão Geral do Período</h3>
+                      <p className="text-xs text-neutral-400 font-medium">Os cards financeiros abaixo respeitam este filtro</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <select 
+                        value={dateFilterType}
+                        onChange={(e) => setDateFilterType(e.target.value as any)}
+                        className="px-4 py-2 rounded-xl bg-neutral-50 border border-neutral-100 font-bold text-xs focus:outline-none focus:border-neutral-900 theme-border"
+                      >
+                        <option value="today">Hoje</option>
+                        <option value="week">Últimos 7 dias</option>
+                        <option value="month">Este Mês</option>
+                        <option value="custom">Personalizado</option>
+                      </select>
+
+                      {dateFilterType === 'custom' && (
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="date"
+                            value={customStartDate}
+                            onChange={(e) => setCustomStartDate(e.target.value)}
+                            className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-100 font-bold text-[10px] focus:outline-none focus:border-neutral-900 theme-border"
+                          />
+                          <input 
+                            type="date"
+                            value={customEndDate}
+                            onChange={(e) => setCustomEndDate(e.target.value)}
+                            className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-100 font-bold text-[10px] focus:outline-none focus:border-neutral-900 theme-border"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
                 {/* Financial Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-10">
                       <Banknote className="w-14 h-14 text-emerald-500" />
@@ -841,7 +973,7 @@ export default function AdminPage() {
                         <TrendingUp className="text-emerald-600 w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Confirmados</h3>
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Confirmados (No Período)</h3>
                     <p className="text-3xl font-bold text-emerald-600 relative z-10">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsCompleted)}
                     </p>
@@ -855,9 +987,9 @@ export default function AdminPage() {
                         <BarChart3 className="text-amber-600 w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Estimados (Pendentes)</h3>
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Estimados (No Período)</h3>
                     <p className="text-3xl font-bold text-amber-600 relative z-10">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsConfirmed)}
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsEstimated)}
                     </p>
                   </div>
                   <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
@@ -869,7 +1001,7 @@ export default function AdminPage() {
                         <TrendingDown className="text-rose-600 w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Cancelados</h3>
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Cancelados (No Período)</h3>
                     <p className="text-3xl font-bold text-rose-600 relative z-10">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsCancelled)}
                     </p>
@@ -895,9 +1027,9 @@ export default function AdminPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {(() => {
-                      const dayAppointments = (shop?.appointments || []).filter(a => a.date === adminBookingData.date && a.status === 'confirmed');
+                      const dayAppointments = (shop?.appointments || []).filter(a => a.date === adminBookingData.date && (a.status === 'confirmed' || a.status === 'pending'));
                       if (dayAppointments.length === 0) {
-                        return <p className="col-span-full text-center py-6 text-neutral-400 font-medium italic">Nenhum agendamento confirmado para esta data.<br/><span className="text-[10px] mt-2 block opacity-70">Agendamentos pendentes não são exibidos nesta grade. Consulte a lista abaixo para aprová-los.</span></p>;
+                        return <p className="col-span-full text-center py-6 text-neutral-400 font-medium italic">Nenhum agendamento para esta data.</p>;
                       }
                       
                       const agendaItems = montarAgendaAdmin(
@@ -912,23 +1044,28 @@ export default function AdminPage() {
                         return (
                           <div
                             key={item.id}
-                            className="p-4 rounded-2xl bg-neutral-900 theme-bg border border-neutral-900 theme-border text-white shadow-md flex flex-col gap-2"
+                            className={`p-4 rounded-2xl ${item.status === 'pending' ? 'bg-amber-50 border border-amber-200 text-neutral-900' : 'bg-neutral-900 theme-bg border border-neutral-900 theme-border text-white'} shadow-md flex flex-col gap-2 relative overflow-hidden`}
                           >
-                            <div className="flex justify-between items-center pb-2 border-b border-white/10">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-bold font-mono">{item.inicio} - {item.fim}</span>
+                            {item.status === 'pending' && (
+                              <div className="absolute top-0 right-0 bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">
+                                Pendente
                               </div>
-                              <span className="text-[10px] uppercase tracking-wider bg-white/10 px-2 py-1 rounded-md font-bold text-center">
+                            )}
+                            <div className={`flex justify-between items-center pb-2 border-b ${item.status === 'pending' ? 'border-amber-200/50' : 'border-white/10'}`}>
+                              <div className="flex flex-col">
+                                <span className={`text-sm font-bold font-mono ${item.status === 'pending' ? 'text-amber-900' : ''}`}>{item.inicio} - {item.fim}</span>
+                              </div>
+                              <span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-md font-bold text-center ${item.status === 'pending' ? 'bg-amber-200 text-amber-900' : 'bg-white/10'}`}>
                                 {barbeiro.split(' ')[0]}
                               </span>
                             </div>
                             <div className="flex flex-col mt-1">
-                              <span className="text-xs text-neutral-400">Cliente</span>
-                              <span className="font-bold text-sm truncate" title={item.cliente}>{item.cliente || 'Sem Nome'}</span>
+                              <span className={`text-xs ${item.status === 'pending' ? 'text-amber-700/70' : 'text-neutral-400'}`}>Cliente</span>
+                              <span className={`font-bold text-sm truncate ${item.status === 'pending' ? 'text-neutral-900' : ''}`} title={item.cliente}>{item.cliente || 'Sem Nome'}</span>
                             </div>
                             {item.original.serviceId && (
                               <div className="flex flex-col mt-1">
-                                <span className="text-xs text-neutral-400">Serviço</span>
+                                <span className={`text-xs ${item.status === 'pending' ? 'text-amber-700/70' : 'text-neutral-400'}`}>Serviço</span>
                                 <span className="font-medium text-xs opacity-90">
                                   {shop?.services?.find(s => s.id === item.original.serviceId)?.name || 'Serviço'}
                                 </span>
@@ -1083,6 +1220,46 @@ export default function AdminPage() {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-8"
               >
+                {/* Date Filter Container */}
+                <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h3 className="font-bold text-lg">Filtro de Dados</h3>
+                      <p className="text-xs text-neutral-400 font-medium">As métricas abaixo respeitam este filtro</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <select 
+                        value={dateFilterType}
+                        onChange={(e) => setDateFilterType(e.target.value as any)}
+                        className="px-4 py-2 rounded-xl bg-neutral-50 border border-neutral-100 font-bold text-xs focus:outline-none focus:border-neutral-900 theme-border"
+                      >
+                        <option value="today">Hoje</option>
+                        <option value="week">Últimos 7 dias</option>
+                        <option value="month">Este Mês</option>
+                        <option value="custom">Personalizado</option>
+                      </select>
+
+                      {dateFilterType === 'custom' && (
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="date"
+                            value={customStartDate}
+                            onChange={(e) => setCustomStartDate(e.target.value)}
+                            className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-100 font-bold text-[10px] focus:outline-none focus:border-neutral-900 theme-border"
+                          />
+                          <span className="text-neutral-400 text-xs font-bold">até</span>
+                          <input 
+                            type="date"
+                            value={customEndDate}
+                            onChange={(e) => setCustomEndDate(e.target.value)}
+                            className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-100 font-bold text-[10px] focus:outline-none focus:border-neutral-900 theme-border"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Finance Metric Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
@@ -1102,7 +1279,7 @@ export default function AdminPage() {
                         <TrendingUp className="text-blue-600 w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="text-neutral-400 text-sm font-bold mb-1">Faturamento (7 dias)</h3>
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1">Faturamento (Fixo 7 dias)</h3>
                     <p className="text-2xl font-bold text-blue-600">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(weekEarnings)}
                     </p>
@@ -1113,7 +1290,7 @@ export default function AdminPage() {
                         <BarChart3 className="text-indigo-600 w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="text-neutral-400 text-sm font-bold mb-1">Faturamento (Mês)</h3>
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1">Faturamento (Fixo Este Mês)</h3>
                     <p className="text-2xl font-bold text-indigo-600">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(monthEarnings)}
                     </p>
@@ -1133,7 +1310,7 @@ export default function AdminPage() {
                   {/* Chart */}
                   <div className="bg-white rounded-4xl border border-neutral-200 shadow-sm p-6 flex flex-col">
                     <h3 className="font-bold text-lg mb-6">Receita Diária (7 dias)</h3>
-                    <div className="flex-1 min-h-75">
+                    <div className="flex-1 min-h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={dailyEarningsChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
@@ -1171,28 +1348,50 @@ export default function AdminPage() {
 
                 <div className="bg-white rounded-4xl border border-neutral-200 shadow-sm p-6">
                   <h3 className="font-bold text-lg mb-6">Produtividade por Barbeiro</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {barberMetrics.length > 0 ? barberMetrics.map((b, idx) => (
-                      <div key={idx} className="p-4 border border-neutral-100 rounded-2xl flex flex-col gap-2 relative overflow-hidden">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-neutral-900 rounded-full flex items-center justify-center text-white text-xs font-bold theme-bg">
+                      <div key={idx} className="p-6 border border-neutral-100 rounded-[2rem] flex flex-col gap-4 relative overflow-hidden hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-neutral-900 rounded-2xl flex items-center justify-center text-white text-sm font-bold theme-bg">
                             {b.name.charAt(0).toUpperCase()}
                           </div>
-                          <span className="font-bold text-sm truncate">{b.name}</span>
+                          <span className="font-bold text-base truncate">{b.name}</span>
                         </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-neutral-500">Atendimentos Realizados</p>
-                          <p className="font-bold text-lg">{b.count}</p>
-                        </div>
-                        <div className="space-y-1 mt-2">
-                          <p className="text-xs text-neutral-500">Valor Gerado</p>
-                          <p className="font-bold text-emerald-600 text-lg">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(b.total)}
-                          </p>
+                        
+                        <div className="grid grid-cols-1 gap-4 divide-y divide-neutral-50">
+                          <div className="pt-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter">Valor Gerado (Concluídos)</p>
+                              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{b.completedCount} atend.</span>
+                            </div>
+                            <p className="font-bold text-xl text-emerald-600">
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(b.completedTotal)}
+                            </p>
+                          </div>
+                          
+                          <div className="pt-4">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter">Valor Potencial (Agendados)</p>
+                              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{b.potentialCount} atend.</span>
+                            </div>
+                            <p className="font-bold text-xl text-amber-600">
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(b.potentialTotal)}
+                            </p>
+                          </div>
+
+                          <div className="pt-4">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter">Valor Perdido (Cancelados)</p>
+                              <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">{b.cancelledCount} atend.</span>
+                            </div>
+                            <p className="font-bold text-xl text-rose-600">
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(b.cancelledTotal)}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     )) : (
-                      <p className="col-span-full text-center text-neutral-400 py-6 text-sm">Nenhuma métrica de barbeiros.</p>
+                      <p className="col-span-full text-center text-neutral-400 py-12 text-sm italic font-medium">Nenhuma métrica de barbeiros no período selecionado.</p>
                     )}
                   </div>
                 </div>
@@ -1626,7 +1825,7 @@ export default function AdminPage() {
                       <input
                         type="text"
                         value={shop.phone}
-                        onChange={(e) => setShop({ ...shop, phone: e.target.value })}
+                        onChange={(e) => setShop({ ...shop, phone: maskPhone(e.target.value) })}
                         className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
                       />
                     </div>
@@ -1965,7 +2164,7 @@ export default function AdminPage() {
                       type="text"
                       placeholder="(00) 00000-0000"
                       value={adminBookingData.customerPhone}
-                      onChange={(e) => setAdminBookingData({ ...adminBookingData, customerPhone: e.target.value })}
+                      onChange={(e) => setAdminBookingData({ ...adminBookingData, customerPhone: maskPhone(e.target.value) })}
                       className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold"
                       required
                     />
@@ -2064,6 +2263,8 @@ export default function AdminPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <InstallPWA />
     </div>
   );
 }

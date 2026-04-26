@@ -83,7 +83,7 @@ export default function SaaSAdminDashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="bg-white p-6 rounded-4xl border border-neutral-200 shadow-sm hover:shadow-md transition-all"
+            className="bg-white p-6 rounded-[2rem] border border-neutral-200 shadow-sm hover:shadow-md transition-all"
           >
             <div className="flex items-center justify-between mb-4">
               <div className={`w-12 h-12 ${card.color} rounded-2xl flex items-center justify-center text-white shadow-lg shadow-current/20`}>
@@ -126,7 +126,7 @@ export default function SaaSAdminDashboard() {
                 <option>Último ano</option>
               </select>
             </div>
-            <div className="h-75 w-full">
+            <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={stats.revenueByMonth}>
                   <defs>
@@ -203,7 +203,7 @@ export default function SaaSAdminDashboard() {
                       log.type === 'error' ? 'bg-rose-500' : 
                       log.type === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'
                     }`} />
-                    {i < Math.min(logs.length, 20) - 1 && <div className="absolute top-4 left-1 md:left-1.5 -bottom-4 md:bottom-0 w-px bg-neutral-200" />}
+                    {i < Math.min(logs.length, 20) - 1 && <div className="absolute top-4 left-1 md:left-1.5 bottom-[-16px] md:bottom-0 w-px bg-neutral-200" />}
                   </div>
                   <div>
                     <p className="text-xs md:text-sm font-bold">{log.details}</p>
