@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { BarberProvider } from "@/context/BarberContext";
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,6 +37,7 @@ export default function RootLayout({
         <BarberProvider>
           {children}
         </BarberProvider>
+        <Analytics />
       </body>
     </html>
   );
