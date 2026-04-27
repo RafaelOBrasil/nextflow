@@ -29,7 +29,7 @@ export async function GET() {
             name: plan.name,
             price: plan.price,
             interval: plan.interval,
-            features: plan.features,
+            features: plan.features.join(', '),
             maxAppointments: plan.maxAppointments,
             isPopular: plan.isPopular || false
           }
