@@ -9,7 +9,7 @@ import {
   timeToMinutes
 } from '@/lib/scheduling';
 import { useParams, useRouter } from 'next/navigation';
-import { maskPhone } from '@/lib/utils';
+import { maskPhone, normalizePhone } from '@/lib/utils';
 import InstallPWA from '@/components/InstallPWA';
 import {
   LayoutDashboard,
@@ -41,7 +41,8 @@ import {
   TrendingUp,
   BarChart3,
   TrendingDown,
-  DollarSign
+  DollarSign,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
@@ -59,8 +60,15 @@ export default function AdminPage() {
   const shopInstance = getShopBySlug(slug);
   const { tickets, loading: ticketsLoading, createTicket, addMessage, closeTicket, fetchTicket } = useTickets(shopInstance?.id);
   const router = useRouter();
-  const [shop, setShop] = useState<BarberShop | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'finance' | 'services' | 'barbers' | 'settings' | 'reviews' | 'support'>('dashboard');
+  const [shop, setShop] = useState<BarberShop | null>(null);
+
+  useEffect(() => {
+    if (shopInstance && (activeTab !== 'settings' || !shop)) {
+      setShop(shopInstance);
+    }
+  }, [shopInstance, activeTab]);
+
   const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'hours' | 'admin'>('general');
   const [isSaving, setIsSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -74,6 +82,15 @@ export default function AdminPage() {
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    if (!slug) return;
+    setIsRefreshing(true);
+    await fetchShopBySlug(slug, true);
+    setIsRefreshing(false);
+  };
+
   const [adminBookingData, setAdminBookingData] = useState({
     customerName: '',
     customerPhone: '',
@@ -84,9 +101,9 @@ export default function AdminPage() {
   });
   const [isBookingManual, setIsBookingManual] = useState(false);
   const formatDate = (date: string) => {
-  const [y, m, d] = date.split('-')
-  return `${d}/${m}/${y}`
-};
+    const [y, m, d] = date.split('-');
+    return `${d}/${m}/${y}`;
+  };
 
   // Login state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -112,65 +129,39 @@ export default function AdminPage() {
   }, [slug]);
 
   useEffect(() => {
-  if (!adminBookingData.date) {
-    setAdminBookingData(prev => ({
-      ...prev,
-      date: getToday(),
-    }))
-  }
-}, [adminBookingData.date])
-
-  useEffect(() => {
-    if (mounted && shops.length > 0) {
-      const updatedShop = getShopBySlug(slug);
-      if (updatedShop) {
-        setShop(updatedShop);
-      }
+    if (!adminBookingData.date) {
+      setAdminBookingData(prev => ({
+        ...prev,
+        date: getToday(),
+      }));
     }
-  }, [shops, slug, mounted, getShopBySlug]);
+  }, [adminBookingData.date]);
 
   useEffect(() => {
-    let isMounted = true;
-
     const loadShop = async () => {
-      if (!mounted) return;
+      if (!mounted || !slug) return;
 
       setShopLoading(true);
-      let found: BarberShop | null | undefined = getShopBySlug(slug);
-
-      if (!found) {
-        found = await fetchShopBySlug(slug);
+      const found = await fetchShopBySlug(slug);
+      
+      if (found && found.status === 'expired') {
+        setShowExpiredModal(true);
       }
-
-      if (isMounted && found) {
-        setShop(found);
-        if (found.status === 'expired') {
-          setShowExpiredModal(true);
-        }
-        if (found.adminEmail) {
-          setEmail(prev => prev || found.adminEmail!);
-        }
-      }
-      if (isMounted) {
-        setShopLoading(false);
-      }
+      setShopLoading(false);
     };
 
     loadShop();
+  }, [slug, mounted, isLoggedIn, fetchShopBySlug]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [slug, mounted, getShopBySlug, fetchShopBySlug]);
-
+  // Silent polling to ensure data is fresh even if socket drops
   useEffect(() => {
-    if (mounted && slug && isLoggedIn) {
+    if (mounted && slug && isLoggedIn && activeTab === 'dashboard') {
       const interval = setInterval(() => {
         fetchShopBySlug(slug, true);
-      }, 10000);
+      }, 15000); // Polling every 15s for the dashboard
       return () => clearInterval(interval);
     }
-  }, [mounted, slug, isLoggedIn, fetchShopBySlug]);
+  }, [mounted, slug, isLoggedIn, fetchShopBySlug, activeTab]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -274,28 +265,50 @@ export default function AdminPage() {
     }
   };
 
+  const handleBarberImageUpload = (e: React.ChangeEvent<HTMLInputElement>, barberId: string) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('A imagem deve ter no máximo 2MB');
+        return;
+      }
+      if (!shop) return;
+      setIsSaving(true);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        const newBarbers = (shop.barbers || []).map(b => 
+          b.id === barberId ? { ...b, avatar: result } : b
+        );
+        setShop({ ...shop, barbers: newBarbers });
+        setIsSaving(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const sendWhatsAppMessage = (phone: string, message: string) => {
-    const cleanPhone = phone.replace(/\D/g, '');
+    const cleanPhone = normalizePhone(phone);
     const url = `https://wa.me/${cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
   };
 
-  const handleConfirmAppointment = (apt: Appointment) => {
-    updateAppointmentStatus(slug, apt.id, 'confirmed');
+  const handleConfirmAppointment = async (apt: Appointment) => {
+    await updateAppointmentStatus(slug, apt.id, 'confirmed');
     const service = shop?.services.find(s => s.id === apt.serviceId);
     const message = `Olá ${apt.customerName}! Seu agendamento para ${service?.name} no dia ${apt.date} às ${apt.time} foi CONFIRMADO. Te esperamos!`;
     sendWhatsAppMessage(apt.customerPhone, message);
   };
 
-  const handleCompleteAppointment = (apt: Appointment) => {
-    updateAppointmentStatus(slug, apt.id, 'completed');
+  const handleCompleteAppointment = async (apt: Appointment) => {
+    await updateAppointmentStatus(slug, apt.id, 'completed');
     const service = shop?.services.find(s => s.id === apt.serviceId);
     const message = `Olá ${apt.customerName}! Seu atendimento de ${service?.name} foi finalizado. Gostaríamos de saber sua opinião! Deixe uma avaliação em: ${window.location.origin}/${slug}?review=${apt.id}`;
     sendWhatsAppMessage(apt.customerPhone, message);
   };
 
-  const handleCancelAppointment = (apt: Appointment) => {
-    updateAppointmentStatus(slug, apt.id, 'cancelled');
+  const handleCancelAppointment = async (apt: Appointment) => {
+    await updateAppointmentStatus(slug, apt.id, 'cancelled');
     const service = shop?.services.find(s => s.id === apt.serviceId);
     const message = `Olá ${apt.customerName}. Infelizmente precisamos CANCELAR seu agendamento para ${service?.name} no dia ${apt.date} às ${apt.time}. Por favor, entre em contato para reagendar.`;
     sendWhatsAppMessage(apt.customerPhone, message);
@@ -632,12 +645,56 @@ export default function AdminPage() {
   const validApts = filteredByDateApts.filter(a => a.status === 'completed');
   const earningsCompleted = validApts.reduce((acc, curr) => acc + getAptPrice(curr), 0);
   
+  let previousMonthEarnings = 0;
+  if(now && dateFilterType === 'month') {
+      const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      const lastMonthApts = allApts.filter(a => {
+           if (!a.date || a.status !== 'completed') return false;
+           const [y, m, d] = a.date.split('-').map(Number);
+           const aptDate = new Date(y, m - 1, d);
+           return aptDate >= firstDayOfLastMonth && aptDate <= lastDayOfLastMonth;
+      });
+      previousMonthEarnings = lastMonthApts.reduce((acc, curr) => acc + getAptPrice(curr), 0);
+  }
+  
+  const growth = previousMonthEarnings === 0 ? 0 : ((earningsCompleted - previousMonthEarnings) / previousMonthEarnings) * 100;
+  
   // Ganhos Estimados (Agendados / Pendentes)
   const validEstimates = filteredByDateApts.filter(a => a.status === 'confirmed' || a.status === 'pending');
   const earningsEstimated = validEstimates.reduce((acc, curr) => acc + getAptPrice(curr), 0);
+  
+  let previousMonthEstimated = 0;
+  if(now && dateFilterType === 'month') {
+      const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      const lastMonthApts = allApts.filter(a => {
+           if (!a.date || (a.status !== 'confirmed' && a.status !== 'pending')) return false;
+           const [y, m, d] = a.date.split('-').map(Number);
+           const aptDate = new Date(y, m - 1, d);
+           return aptDate >= firstDayOfLastMonth && aptDate <= lastDayOfLastMonth;
+      });
+      previousMonthEstimated = lastMonthApts.reduce((acc, curr) => acc + getAptPrice(curr), 0);
+  }
+  const growthEstimated = previousMonthEstimated === 0 ? 0 : ((earningsEstimated - previousMonthEstimated) / previousMonthEstimated) * 100;
 
-  // Ganhos Cancelados (Receita Perdida)
-  const earningsCancelled = filteredByDateApts.filter(a => a.status === 'cancelled').reduce((acc, curr) => acc + getAptPrice(curr), 0);
+  // Ganhos Cancelados
+  const validCancelled = filteredByDateApts.filter(a => a.status === 'cancelled');
+  const earningsCancelled = validCancelled.reduce((acc, curr) => acc + getAptPrice(curr), 0);
+
+  let previousMonthCancelled = 0;
+  if(now && dateFilterType === 'month') {
+      const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      const lastMonthApts = allApts.filter(a => {
+           if (!a.date || a.status !== 'cancelled') return false;
+           const [y, m, d] = a.date.split('-').map(Number);
+           const aptDate = new Date(y, m - 1, d);
+           return aptDate >= firstDayOfLastMonth && aptDate <= lastDayOfLastMonth;
+      });
+      previousMonthCancelled = lastMonthApts.reduce((acc, curr) => acc + getAptPrice(curr), 0);
+  }
+  const growthCancelled = previousMonthCancelled === 0 ? 0 : ((earningsCancelled - previousMonthCancelled) / previousMonthCancelled) * 100;
 
   // Faturamento (Inclui concluídos, confirmados e pendentes)
   const revenueApts = filteredByDateApts.filter(a => a.status === 'completed' || a.status === 'confirmed' || a.status === 'pending');
@@ -963,7 +1020,7 @@ export default function AdminPage() {
                 </div>
 
                 {/* Financial Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-10">
                       <Banknote className="w-14 h-14 text-emerald-500" />
@@ -973,9 +1030,14 @@ export default function AdminPage() {
                         <TrendingUp className="text-emerald-600 w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Confirmados (No Período)</h3>
-                    <p className="text-3xl font-bold text-emerald-600 relative z-10">
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Confirmados</h3>
+                    <p className="text-3xl font-bold text-emerald-600 relative z-10 flex items-center gap-2">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsCompleted)}
+                      {dateFilterType === 'month' && growth !== 0 && (
+                          <span className={`text-sm ${growth > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {growth > 0 ? '+' : ''}{growth.toFixed(1)}%
+                          </span>
+                      )}
                     </p>
                   </div>
                   <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
@@ -987,9 +1049,14 @@ export default function AdminPage() {
                         <BarChart3 className="text-amber-600 w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Estimados (No Período)</h3>
-                    <p className="text-3xl font-bold text-amber-600 relative z-10">
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Estimados</h3>
+                    <p className="text-3xl font-bold text-amber-600 relative z-10 flex items-center gap-2">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsEstimated)}
+                      {dateFilterType === 'month' && growthEstimated !== 0 && (
+                          <span className={`text-sm ${growthEstimated > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {growthEstimated > 0 ? '+' : ''}{growthEstimated.toFixed(1)}%
+                          </span>
+                      )}
                     </p>
                   </div>
                   <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
@@ -1001,9 +1068,28 @@ export default function AdminPage() {
                         <TrendingDown className="text-rose-600 w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Cancelados (No Período)</h3>
-                    <p className="text-3xl font-bold text-rose-600 relative z-10">
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ganhos Cancelados</h3>
+                    <p className="text-3xl font-bold text-rose-600 relative z-10 flex items-center gap-2">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsCancelled)}
+                      {dateFilterType === 'month' && growthCancelled !== 0 && (
+                          <span className={`text-sm ${growthCancelled > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {growthCancelled > 0 ? '+' : ''}{growthCancelled.toFixed(1)}%
+                          </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                      <DollarSign className="w-14 h-14 text-sky-500" />
+                    </div>
+                    <div className="flex items-center justify-between mb-4 relative z-10">
+                      <div className="w-10 h-10 bg-sky-100 rounded-xl flex items-center justify-center">
+                        <TrendingUp className="text-sky-600 w-5 h-5" />
+                      </div>
+                    </div>
+                    <h3 className="text-neutral-400 text-sm font-bold mb-1 relative z-10">Ticket Médio</h3>
+                    <p className="text-3xl font-bold text-sky-600 relative z-10">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(validApts.length > 0 ? earningsCompleted / validApts.length : 0)}
                     </p>
                   </div>
                 </div>
@@ -1086,6 +1172,13 @@ export default function AdminPage() {
                       <p className="text-xs text-neutral-400 font-medium">Gerencie o fluxo de clientes da sua barbearia</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                        className="flex items-center gap-2 bg-neutral-100 text-neutral-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-neutral-200 transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} /> {isRefreshing ? 'Sincronizando...' : 'Sincronizar'}
+                      </button>
                       <button
                         onClick={() => setIsBookingModalOpen(true)}
                         className="flex items-center gap-2 bg-neutral-900 theme-bg text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-neutral-800 theme-bg-hover transition-all shadow-lg active:scale-95"
@@ -1424,7 +1517,7 @@ export default function AdminPage() {
                           price: 0,
                           duration: 30
                         };
-                        setShop({ ...shop, services: [...(shop.services || []), newService] });
+                        setShop({ ...shop, services: [newService, ...(shop.services || [])] });
                       }}
                       className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-neutral-900 theme-bg text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-neutral-800 theme-bg-hover transition-all"
                     >
@@ -1555,7 +1648,7 @@ export default function AdminPage() {
                           role: 'Barbeiro',
                           avatar: `https://picsum.photos/seed/${Math.random()}/200`
                         };
-                        setShop({ ...shop, barbers: [...(shop.barbers || []), newBarber] });
+                        setShop({ ...shop, barbers: [newBarber, ...(shop.barbers || [])] });
                       }}
                       className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-neutral-900 theme-bg text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-neutral-800 theme-bg-hover transition-all"
                     >
@@ -1567,8 +1660,19 @@ export default function AdminPage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   {(shop.barbers || []).map((barber, index) => (
                     <div key={barber.id} className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm flex items-start gap-4">
-                      <div className={`w-20 h-20 rounded-2xl overflow-hidden border border-neutral-100 shrink-0 ${barber.active === false ? 'grayscale opacity-60' : ''}`}>
-                        <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" />
+                      <div className="relative group shrink-0">
+                        <div className={`w-20 h-20 rounded-2xl overflow-hidden border border-neutral-100 ${barber.active === false ? 'grayscale opacity-60' : ''}`}>
+                          <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" />
+                        </div>
+                        <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-2xl">
+                          <Upload className="w-5 h-5 text-white" />
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png"
+                            className="hidden"
+                            onChange={(e) => handleBarberImageUpload(e, barber.id)}
+                          />
+                        </label>
                       </div>
                       <div className="flex-1 space-y-3">
                         <div className="space-y-1">
@@ -1835,18 +1939,6 @@ export default function AdminPage() {
                     <h4 className="text-sm font-bold mb-4">Acesso Administrativo</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-neutral-400 uppercase ml-1">E-mail do Administrador</label>
-                        <div className="relative">
-                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                          <input
-                            type="email"
-                            value={shop.adminEmail || ''}
-                            onChange={(e) => setShop({ ...shop, adminEmail: e.target.value })}
-                            className="w-full pl-12 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
                         <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Senha do Painel</label>
                         <div className="relative">
                           <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
@@ -2027,7 +2119,7 @@ export default function AdminPage() {
                         <span className="text-white font-bold text-[10px] uppercase tracking-wider bg-black/40 px-2 py-1 rounded-full">Alterar</span>
                         <input
                           type="file"
-                          accept="image/*"
+                          accept=".jpg,.jpeg,.png"
                           disabled={!hasFeature('page_customization')}
                           className="hidden"
                           onChange={(e) => handleImageUpload(e, 'logo')}
@@ -2070,7 +2162,7 @@ export default function AdminPage() {
                         <span className="text-white font-bold text-sm uppercase tracking-wider bg-black/40 px-4 py-2 rounded-full">Alterar Capa</span>
                         <input
                           type="file"
-                          accept="image/*"
+                          accept=".jpg,.jpeg,.png"
                           disabled={!hasFeature('page_customization')}
                           className="hidden"
                           onChange={(e) => handleImageUpload(e, 'banner')}

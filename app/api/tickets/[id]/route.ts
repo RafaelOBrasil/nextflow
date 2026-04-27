@@ -82,8 +82,24 @@ export async function PUT(
       data: {
         status: status || ticket.status,
         priority: priority || ticket.priority
+      },
+      include: {
+        shop: { select: { name: true } }
       }
     });
+
+    // Add log
+    if (status && status !== ticket.status) {
+      await prisma.systemLog.create({
+        data: {
+          userId: user.userId,
+          action: 'UPDATE_TICKET_STATUS',
+          target: updatedTicket.shop.name,
+          details: `Status do chamado "${updatedTicket.subject}" alterado para ${status}`,
+          type: 'info'
+        }
+      });
+    }
 
     return NextResponse.json(updatedTicket);
   } catch (error) {

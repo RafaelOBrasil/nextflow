@@ -3,40 +3,71 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-me';
+const JWT_SECRET = process.env.JWT_SECRET!;
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { email, password } = body;
+    const { email, password } = await request.json();
 
+    // Validação básica (sem firula)
     if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Email e senha são obrigatórios' },
+        { status: 400 }
+      );
     }
 
+    // Busca usuário + loja em UMA query (evita roundtrip)
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { 
+      include: {
         shop: {
-          include: {
-            users: true
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            status: true,
+            users: {
+              where: { role: 'SHOP_ADMIN' },
+              select: { email: true },
+              take: 1
+            }
           }
         }
       }
     });
 
     if (!user) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Credenciais inválidas' },
+        { status: 401 }
+      );
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const passwordMatch = await bcrypt.compare(password, user.password);
 
-    if (!isPasswordValid) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    if (!passwordMatch) {
+      return NextResponse.json(
+        { error: 'Credenciais inválidas' },
+        { status: 401 }
+      );
     }
 
+    // Regra de negócio (importante)
+    if (user.shop && ['blocked', 'expired'].includes(user.shop.status)) {
+      return NextResponse.json(
+        { error: 'Loja bloqueada ou expirada' },
+        { status: 403 }
+      );
+    }
+
+    // Token enxuto (sem excesso de payload)
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role, shopId: user.shopId },
+      {
+        sub: user.id,
+        role: user.role,
+        shopId: user.shopId
+      },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -48,16 +79,23 @@ export async function POST(request: Request) {
         email: user.email,
         name: user.name,
         role: user.role,
-        shop: user.shop ? {
-          id: user.shop.id,
-          slug: user.shop.slug,
-          name: user.shop.name,
-          adminEmail: user.shop.users.find(u => u.role === 'SHOP_ADMIN')?.email
-        } : null
+        shop: user.shop
+          ? {
+              id: user.shop.id,
+              slug: user.shop.slug,
+              name: user.shop.name,
+              adminEmail: user.shop.users[0]?.email
+            }
+          : null
       }
     });
+
   } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('LOGIN_ERROR:', error);
+
+    return NextResponse.json(
+      { error: 'Erro interno no servidor' },
+      { status: 500 }
+    );
   }
 }

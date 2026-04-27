@@ -68,12 +68,12 @@ export default function InstallPWA() {
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
-          className="fixed bottom-6 left-4 right-4 md:left-auto md:right-8 md:w-80 z-100"
+          className="fixed bottom-6 left-4 right-4 md:left-auto md:right-8 md:w-80 z-[100]"
         >
           <div className="bg-white rounded-2xl shadow-2xl border border-neutral-100 p-5 flex flex-col gap-4">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-neutral-900 theme-bg rounded-xl flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 bg-neutral-900 theme-bg rounded-xl flex items-center justify-center flex-shrink-0">
                   <Download className="text-white w-6 h-6" />
                 </div>
                 <div>

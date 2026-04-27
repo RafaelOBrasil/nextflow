@@ -100,6 +100,17 @@ export async function POST(request: Request) {
       }
     });
 
+    // Add log
+    await prisma.systemLog.create({
+      data: {
+        userId: user.userId,
+        action: 'CREATE_TICKET',
+        target: ticket.shop.name,
+        details: `Novo chamado de suporte aberto: ${subject}`,
+        type: 'info'
+      }
+    });
+
     return NextResponse.json(ticket);
   } catch (error) {
     console.error('Error creating ticket:', error);

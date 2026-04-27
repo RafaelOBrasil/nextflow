@@ -11,6 +11,7 @@ export const getSocket = () => {
     socket = io({
       path: '/api/socket',
       autoConnect: false,
+      transports: ['polling', 'websocket'],
     });
   }
   return socket;

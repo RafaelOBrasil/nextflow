@@ -16,7 +16,7 @@ import { usePlans } from './use-plans';
 const SAAS_STORAGE_KEY = 'barber_saas_global_data';
 
 export function useSaaSData() {
-  const { shops, updateShop, loading: shopsLoading } = useBarberData();
+  const { shops, updateShop, loading: shopsLoading, fetchShops } = useBarberData();
   const { plans, loading: plansLoading } = usePlans();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [superUsers, setSuperUsers] = useState<SuperUser[]>([]);
@@ -46,13 +46,19 @@ export function useSaaSData() {
 
   const fetchPayments = useCallback(async () => {
     try {
-      const res = await fetch('/api/saas/payments');
+      let token = typeof window !== 'undefined' ? localStorage.getItem('saas_admin_token') : null;
+      if (!token) token = typeof window !== 'undefined' ? localStorage.getItem('barber_auth_token') : null;
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/api/saas/payments', { headers });
       if (res.ok) {
         const data = await res.json();
         // Map database Payment to SaaS Payment type
         const mappedPayments: Payment[] = data.map((p: any) => ({
           id: p.id,
           shopId: p.shopId,
+          shopName: p.shop?.name,
           amount: p.amount,
           currency: p.currency,
           status: p.status as any,
@@ -69,7 +75,12 @@ export function useSaaSData() {
 
   const fetchLogs = useCallback(async () => {
     try {
-      const res = await fetch('/api/saas/logs');
+      let token = typeof window !== 'undefined' ? localStorage.getItem('saas_admin_token') : null;
+      if (!token) token = typeof window !== 'undefined' ? localStorage.getItem('barber_auth_token') : null;
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      
+      const res = await fetch('/api/saas/logs', { headers });
       if (res.ok) {
         const data = await res.json();
         setLogs(data);
@@ -81,9 +92,11 @@ export function useSaaSData() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      fetchShops(true);
       fetchPayments();
       fetchLogs();
       fetchTickets();
+      // ...
       const stored = localStorage.getItem(SAAS_STORAGE_KEY);
       if (stored) {
         try {
@@ -104,7 +117,7 @@ export function useSaaSData() {
       }
     }
     setLoading(false);
-  }, [shopsLoading, fetchLogs, fetchPayments, fetchTickets]);
+  }, [fetchShops, fetchLogs, fetchPayments, fetchTickets]);
 
   const saveSaaSData = useCallback((data: { payments?: Payment[], tickets?: SupportTicket[], superUsers?: SuperUser[] }) => {
     const current = JSON.parse(localStorage.getItem(SAAS_STORAGE_KEY) || '{}');
@@ -117,9 +130,14 @@ export function useSaaSData() {
 
   const addLog = useCallback(async (action: string, target: string, details: string, type: SystemLog['type'] = 'info') => {
     try {
+      let token = typeof window !== 'undefined' ? localStorage.getItem('saas_admin_token') : null;
+      if (!token) token = typeof window !== 'undefined' ? localStorage.getItem('barber_auth_token') : null;
       const res = await fetch('/api/saas/logs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ userId: 'admin', action, target, details, type })
       });
       if (res.ok) {

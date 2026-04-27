@@ -17,7 +17,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         name,
         price,
         interval,
-        features: features ? JSON.stringify(features) : undefined,
+        features,
         maxAppointments,
         isPopular,
         discount,
@@ -25,10 +25,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       }
     });
 
-    return NextResponse.json({
-      ...plan,
-      features: JSON.parse(plan.features)
-    });
+    return NextResponse.json(plan);
   } catch (error) {
     console.error('Error updating plan:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

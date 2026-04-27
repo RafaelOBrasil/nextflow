@@ -18,12 +18,15 @@ import {
   Users,
   Scissors,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 import EditShopModal from '@/components/EditShopModal';
 import { BarberShop } from '@/lib/types';
+import { normalizePhone } from '@/lib/utils';
 
 export default function ShopDetailsPage() {
   const params = useParams();
@@ -145,27 +148,45 @@ export default function ShopDetailsPage() {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm">
               <div className="w-10 h-10 bg-neutral-50 rounded-xl flex items-center justify-center mb-4">
                 <Calendar className="w-5 h-5 text-neutral-400" />
               </div>
               <p className="text-2xl font-bold">{shop.appointments?.length || 0}</p>
-              <p className="text-xs text-neutral-400 font-bold uppercase tracking-widest mt-1">Agendamentos</p>
+              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Agendamentos</p>
             </div>
+            
             <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm">
               <div className="w-10 h-10 bg-neutral-50 rounded-xl flex items-center justify-center mb-4">
                 <Users className="w-5 h-5 text-neutral-400" />
               </div>
               <p className="text-2xl font-bold">{shop.barbers?.length || 0}</p>
-              <p className="text-xs text-neutral-400 font-bold uppercase tracking-widest mt-1">Barbeiros</p>
+              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Barbeiros</p>
             </div>
-            <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm">
-              <div className="w-10 h-10 bg-neutral-50 rounded-xl flex items-center justify-center mb-4">
-                <Scissors className="w-5 h-5 text-neutral-400" />
+
+            <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center mb-4">
+                  <TrendingUp className="w-5 h-5 text-emerald-500" />
+                </div>
+                <p className="text-xl md:text-2xl font-bold text-emerald-600">
+                  {(shop.appointments || []).filter((a: any) => a.status === 'completed').reduce((sum: number, a: any) => sum + (a.service?.price || 0), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </p>
               </div>
-              <p className="text-2xl font-bold">{shop.services?.length || 0}</p>
-              <p className="text-xs text-neutral-400 font-bold uppercase tracking-widest mt-1">Serviços</p>
+              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Lucro (Concluídos)</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center mb-4">
+                  <TrendingDown className="w-5 h-5 text-rose-500" />
+                </div>
+                <p className="text-xl md:text-2xl font-bold text-rose-600">
+                  {((shop.appointments || []).filter((a: any) => a.status === 'cancelled' || a.status === 'no_show').reduce((sum: number, a: any) => sum + (a.service?.price || 0), 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </p>
+              </div>
+              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Perdas (Cancelados)</p>
             </div>
           </div>
 
@@ -275,7 +296,7 @@ export default function ShopDetailsPage() {
                 </button>
                 {isExpired && shop.phone && (
                   <a 
-                    href={`https://wa.me/55${shop.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${shop.name}, sua assinatura do plano ${plan?.name || ''} venceu. Para continuar usando o sistema, por favor renove sua assinatura acessando o painel.`)}`}
+                    href={`https://wa.me/55${normalizePhone(shop.phone)}?text=${encodeURIComponent(`Olá ${shop.name}, sua assinatura do plano ${plan?.name || ''} venceu. Para continuar usando o sistema, por favor renove sua assinatura acessando o painel.`)}`}
                     target="_blank"
                     className="w-full py-3 bg-green-50 text-green-600 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-green-100 transition-all"
                   >
@@ -286,74 +307,35 @@ export default function ShopDetailsPage() {
             </div>
           </div>
 
-          {/* Activity Timeline (Placeholder) */}
+          {/* Activity Timeline */}
           <div className="bg-white rounded-[2.5rem] border border-neutral-200 p-8 shadow-sm">
             <h3 className="text-lg font-bold mb-6">Atividade Recente</h3>
             <div className="space-y-6">
-              <div className="flex gap-4">
-                <div className="w-8 h-8 bg-emerald-50 rounded-full flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold">Assinatura Renovada</p>
-                  <p className="text-[10px] text-neutral-400">Há 2 dias</p>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="w-8 h-8 bg-neutral-50 rounded-full flex items-center justify-center shrink-0">
-                  <Clock className="w-4 h-4 text-neutral-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold">Novo Barbeiro Adicionado</p>
-                  <p className="text-[10px] text-neutral-400">Há 5 dias</p>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="w-8 h-8 bg-amber-50 rounded-full flex items-center justify-center shrink-0">
-                  <AlertCircle className="w-4 h-4 text-amber-500" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold">Tentativa de Login Falhou</p>
-                  <p className="text-[10px] text-neutral-400">Há 1 semana</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* System Logs */}
-          <div className="bg-white rounded-[2.5rem] border border-neutral-200 shadow-sm overflow-hidden">
-            <div className="p-8 border-b border-neutral-100 flex items-center justify-between">
-              <h3 className="text-lg font-bold">Logs do Sistema</h3>
-              <div className="px-3 py-1 bg-neutral-50 rounded-full text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
-                Atividade Recente
-              </div>
-            </div>
-            <div className="divide-y divide-neutral-50">
-              {shopLogs.length > 0 ? shopLogs.map((log) => (
-                <div key={log.id} className="p-6 hover:bg-neutral-50/50 transition-all flex items-start gap-4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                    log.type === 'error' ? 'bg-rose-50 text-rose-500' :
-                    log.type === 'warning' ? 'bg-amber-50 text-amber-500' :
-                    log.type === 'security' ? 'bg-purple-50 text-purple-500' :
-                    'bg-blue-50 text-blue-500'
-                  }`}>
-                    {log.type === 'error' ? <AlertCircle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-bold uppercase tracking-wider">{log.action}</span>
-                      <span className="text-[10px] text-neutral-400">• {new Date(log.timestamp).toLocaleString('pt-BR')}</span>
+              {shopLogs.length > 0 ? (
+                shopLogs.slice(0, 5).map((log) => (
+                  <div key={log.id} className="flex gap-4">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                      log.type === 'error' ? 'bg-rose-50 text-rose-500' :
+                      log.type === 'warning' ? 'bg-amber-50 text-amber-500' :
+                      log.type === 'security' ? 'bg-purple-50 text-purple-500' :
+                      'bg-blue-50 text-blue-500'
+                    }`}>
+                      {log.type === 'error' ? <AlertCircle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
                     </div>
-                    <p className="text-sm text-neutral-600">{log.details}</p>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider">{log.action.replace(/_/g, ' ')}</p>
+                      <p className="text-[10px] text-neutral-400">
+                        {new Date(log.timestamp).toLocaleDateString('pt-BR')} às {new Date(log.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )) : (
-                <div className="p-10 text-center text-neutral-400 text-sm">
-                  Nenhum log de atividade para esta barbearia.
-                </div>
+                ))
+              ) : (
+                <p className="text-neutral-400 text-xs italic">Nenhuma atividade registrada.</p>
               )}
             </div>
           </div>
+
         </div>
       </div>
     </div>

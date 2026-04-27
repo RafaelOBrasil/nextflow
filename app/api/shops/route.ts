@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { getAuthUser } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    const user = await getAuthUser();
+    const isSaaSAdmin = user?.role === 'SAAS_ADMIN';
+
     const shops = await prisma.barberShop.findMany({
       include: {
         services: true,
@@ -28,34 +32,56 @@ export async function GET() {
     // Check for expiration and format
     const now = new Date();
     const formattedShops = await Promise.all(shops.map(async (shop) => {
-      const activeSubscription = shop.subscriptions[0];
       let currentStatus = shop.status;
+      let activeSubscription = null;
 
-      if (activeSubscription && activeSubscription.currentPeriodEnd < now && currentStatus !== 'expired') {
-        await prisma.barberShop.update({
-          where: { id: shop.id },
-          data: { status: 'expired' }
-        });
-        await prisma.subscription.update({
-          where: { id: activeSubscription.id },
-          data: { status: 'expired' }
-        });
-        currentStatus = 'expired';
-        activeSubscription.status = 'expired';
+      if (shop.subscriptions && shop.subscriptions.length > 0) {
+        activeSubscription = shop.subscriptions[0];
+        if (activeSubscription && activeSubscription.currentPeriodEnd < now && currentStatus !== 'expired') {
+          await prisma.barberShop.update({
+            where: { id: shop.id },
+            data: { status: 'expired' }
+          });
+          await prisma.subscription.update({
+            where: { id: activeSubscription.id },
+            data: { status: 'expired' }
+          });
+          currentStatus = 'expired';
+          activeSubscription.status = 'expired';
+        }
       }
 
-      return {
-        ...shop,
+      const shopData: any = {
+        id: shop.id,
+        name: shop.name,
+        slug: shop.slug,
+        description: shop.description,
+        address: shop.address,
+        phone: shop.phone,
+        banner: shop.banner,
         status: currentStatus,
-        adminEmail: shop.users?.[0]?.email,
+        planId: shop.planId,
         openingHours: shop.openingHours ? JSON.parse(shop.openingHours) : undefined,
-        subscriptions: shop.subscriptions.map(sub => ({
+        createdAt: shop.createdAt,
+        updatedAt: shop.updatedAt,
+        services: shop.services,
+        barbers: shop.barbers,
+        reviews: shop.reviews
+      };
+
+      if (isSaaSAdmin) {
+        shopData.appointments = shop.appointments;
+        shopData.adminEmail = shop.users?.[0]?.email;
+        shopData.plan = shop.plan;
+        shopData.subscriptions = shop.subscriptions?.map(sub => ({
           ...sub,
           createdAt: sub.createdAt.toISOString(),
           updatedAt: sub.updatedAt.toISOString(),
           currentPeriodEnd: sub.currentPeriodEnd.toISOString()
-        }))
-      };
+        }));
+      }
+
+      return shopData;
     }));
 
     return NextResponse.json(formattedShops);

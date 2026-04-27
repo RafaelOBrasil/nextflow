@@ -2,6 +2,7 @@
 
 import { useSaaSData } from '@/hooks/use-saas-data';
 import { BarberShop } from '@/lib/types';
+import { normalizePhone } from '@/lib/utils';
 import { 
   Search, 
   Filter, 
@@ -147,7 +148,7 @@ export default function SaaSShopsManagement() {
                 <div className="flex items-center gap-2">
                   {shop.status === 'expired' && shop.phone && (
                     <a 
-                      href={`https://wa.me/55${shop.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${shop.name}, sua assinatura do plano ${plan?.name || ''} venceu. Para continuar usando o sistema, por favor renove sua assinatura acessando o painel.`)}`}
+                      href={`https://wa.me/55${normalizePhone(shop.phone)}?text=${encodeURIComponent(`Olá ${shop.name}, sua assinatura do plano ${plan?.name || ''} venceu. Para continuar usando o sistema, por favor renove sua assinatura acessando o painel.`)}`}
                       target="_blank"
                       className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-xl transition-all"
                       title="Notificar WhatsApp"

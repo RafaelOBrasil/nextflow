@@ -68,3 +68,7 @@ export const validateCNPJ = (cnpj: string) => {
   if (result !== parseInt(digits.charAt(1))) return false;
   return true;
 };
+
+export function normalizePhone(phone?: string) {
+  return (phone || '').replace(/\D/g, '');
+}

@@ -15,6 +15,7 @@ export interface Subscription {
 export interface Payment {
   id: string;
   shopId: string;
+  shopName?: string;
   amount: number;
   currency: string;
   status: 'succeeded' | 'pending' | 'failed';

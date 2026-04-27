@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import { BarberProvider } from "@/context/BarberContext";
 
@@ -17,12 +18,15 @@ export const metadata: Metadata = {
   title: "Next Flow Barber",
   description: "Sistema de agendamento e gestão para barbearias profissionais.",
   manifest: "/manifest.json",
-  themeColor: "#171717",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Next Flow Barber",
   },
+};
+
+export const viewport = {
+  themeColor: "#171717",
 };
 
 export default function RootLayout({
@@ -36,6 +40,7 @@ export default function RootLayout({
         <BarberProvider>
           {children}
         </BarberProvider>
+        <Analytics />
       </body>
     </html>
   );

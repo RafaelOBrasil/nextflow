@@ -239,7 +239,7 @@ export default function LandingPage() {
                     </p>
                   </div>
 
-                  <div className="space-y-4 md:space-y-5 mb-10 md:mb-12 grow">
+                  <div className="space-y-4 md:space-y-5 mb-10 md:mb-12 flex-grow">
                     {allFeatures.map((feature) => {
                       const hasFeature = plan.features.includes(feature.key);
                       return (
@@ -294,13 +294,13 @@ export default function LandingPage() {
               <motion.button 
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/rf-brasil')}
+                onClick={() => router.push('/demo')}
                 className="bg-white text-neutral-900 px-10 py-5 rounded-2xl font-bold text-lg hover:bg-neutral-100 transition-all flex items-center justify-center md:justify-start gap-3 w-full sm:w-auto"
               >
                 Ver Demonstração <ArrowRight className="w-6 h-6" />
               </motion.button>
             </div>
-            <div className="flex-1 relative min-h-100 md:min-h-full bg-neutral-800">
+            <div className="flex-1 relative min-h-[400px] md:min-h-full bg-neutral-800">
               <Image 
                 src="https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=2074&auto=format&fit=crop" 
                 alt="Barber Shop Demo"
@@ -308,7 +308,7 @@ export default function LandingPage() {
                 className="object-cover opacity-50 grayscale hover:grayscale-0 transition-all duration-700"
                 referrerPolicy="no-referrer"
               />
-              <div className="absolute inset-0 bg-linear-to-t from-neutral-900 via-transparent to-transparent md:bg-linear-to-l" />
+              <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent md:bg-gradient-to-l" />
             </div>
           </motion.div>
         </div>
@@ -345,9 +345,9 @@ export default function LandingPage() {
               </button>
               <div className="h-4 w-px bg-neutral-200" />
               <div className="flex items-center gap-6 text-neutral-400">
-                <a href="#" title="Avaliações" className="hover:text-neutral-900 transition-colors"><Star className="w-5 h-5" /></a>
-                <a href="#" title="Localização" className="hover:text-neutral-900 transition-colors"><MapPin className="w-5 h-5" /></a>
-                <a href="#" title="Telefone" className="hover:text-neutral-900 transition-colors"><Phone className="w-5 h-5" /></a>
+                <a href="#" className="hover:text-neutral-900 transition-colors"><Star className="w-5 h-5" /></a>
+                <a href="#" className="hover:text-neutral-900 transition-colors"><MapPin className="w-5 h-5" /></a>
+                <a href="#" className="hover:text-neutral-900 transition-colors"><Phone className="w-5 h-5" /></a>
               </div>
             </div>
           </div>

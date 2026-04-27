@@ -12,16 +12,19 @@ import {
   gerarIntervalosLivres, 
   gerarHorariosDisponiveisDinamico 
 } from '@/lib/scheduling';
-import { maskPhone } from '@/lib/utils';
+import { maskPhone, normalizePhone } from '@/lib/utils';
 
 interface ShopViewProps {
   shop: BarberShop;
 }
 
-export default function ShopView({ shop }: ShopViewProps) {
+export default function ShopView({ shop: initialShop }: ShopViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { addAppointment, addReview } = useBarberData();
+  const { addAppointment, addReview, getShopBySlug, fetchShopBySlug } = useBarberData();
+  const contextShop = getShopBySlug(initialShop.slug);
+  const shop = contextShop || initialShop;
+
   const { plans } = usePlans();
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -52,6 +55,10 @@ export default function ShopView({ shop }: ShopViewProps) {
   useEffect(() => {
     setMounted(true);
     setNow(new Date());
+    
+    // Initial fetch to get latest appointments
+    // fetchShopBySlug(initialShop.slug, true); // <--- REMOVED
+
     const reviewId = searchParams?.get('review');
     if (reviewId) {
       // Check if this appointment exists and is completed
@@ -83,9 +90,9 @@ export default function ShopView({ shop }: ShopViewProps) {
         console.error('Error parsing recent shops');
       }
     }
-  }, [shop.slug, searchParams, shop.appointments]);
+  }, [initialShop.slug, searchParams, fetchShopBySlug]);
 
-  const approvedReviews = (shop.reviews || []).filter(r => r.status === 'approved_for_display');
+  const approvedReviews = (shop.reviews || []).filter(r => r.status === 'approved' || r.status === 'approved_for_display');
 
   useEffect(() => {
     if (approvedReviews.length > 1) {
@@ -95,6 +102,16 @@ export default function ShopView({ shop }: ShopViewProps) {
       return () => clearInterval(interval);
     }
   }, [approvedReviews.length]);
+
+  // Periodic fetch only when picking time
+  useEffect(() => {
+    if (mounted && step === 3) {
+      const interval = setInterval(() => {
+        fetchShopBySlug(shop.slug, true);
+      }, 30000); // 30s poll while booking
+      return () => clearInterval(interval);
+    }
+  }, [mounted, step, shop.slug, fetchShopBySlug]);
 
   const saveToRecentShops = () => {
     const updatedRecent = [
@@ -119,7 +136,7 @@ export default function ShopView({ shop }: ShopViewProps) {
     
     // Check if phone exists in shop appointments
     const existingAppointment = (shop.appointments || []).find(apt => 
-      apt.customerPhone.replace(/\D/g, '') === customerInfo.phone.replace(/\D/g, '')
+      normalizePhone(apt.customerPhone) === normalizePhone(customerInfo.phone)
     );
 
     if (existingAppointment) {
@@ -219,7 +236,7 @@ export default function ShopView({ shop }: ShopViewProps) {
     }
   };
 
-  const handleReviewSubmit = () => {
+  const handleReviewSubmit = async () => {
     if (!reviewAppointmentId || !reviewComment.trim()) return;
     
     const apt = (shop.appointments || []).find(a => a.id === reviewAppointmentId);
@@ -235,13 +252,13 @@ export default function ShopView({ shop }: ShopViewProps) {
       status: 'pending'
     };
 
-    addReview(shop.slug, newReview);
+    await addReview(shop.slug, newReview);
     setShowReviewModal(false);
     router.push(`/${shop.slug}`);
   };
 
   const myAppointments = (shop.appointments || []).filter(apt => 
-    apt.customerPhone.replace(/\D/g, '') === customerInfo.phone.replace(/\D/g, '')
+    normalizePhone(apt.customerPhone) === normalizePhone(customerInfo.phone)
   );
 
   const openAppointments = myAppointments.filter(apt => ['pending', 'confirmed'].includes(apt.status));

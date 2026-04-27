@@ -14,7 +14,7 @@ interface BarberContextType {
   addReview: (slug: string, review: any) => Promise<any>;
   getShopBySlug: (slug: string) => BarberShop | undefined;
   fetchShopBySlug: (slug: string, silent?: boolean) => Promise<BarberShop | null>;
-  fetchShops: () => Promise<void>;
+  fetchShops: (force?: boolean) => Promise<void>;
 }
 
 const BarberContext = createContext<BarberContextType | undefined>(undefined);
@@ -23,10 +23,20 @@ export function BarberProvider({ children }: { children: ReactNode }) {
   const [shops, setShops] = useState<BarberShop[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchShops = useCallback(async () => {
+  const fetchedRef = React.useRef(false);
+
+  const fetchShops = useCallback(async (force?: boolean) => {
+    if (fetchedRef.current && !force) return;
     try {
       setLoading(true);
-      const res = await fetch('/api/shops', { cache: 'no-store' });
+      fetchedRef.current = true;
+      let token = typeof window !== 'undefined' ? localStorage.getItem('saas_admin_token') : null;
+      if (!token) token = typeof window !== 'undefined' ? localStorage.getItem('barber_auth_token') : null;
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch('/api/shops', { cache: 'no-store', headers });
       if (res.ok) {
         const data = await res.json();
         setShops(data);
@@ -46,9 +56,11 @@ export function BarberProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Removed automatic fetchShops to improve performance and scalability.
+  // Each page should now fetch only the data it needs.
   useEffect(() => {
-    fetchShops();
-  }, [fetchShops]);
+    setLoading(false);
+  }, []);
 
   const shopsRef = React.useRef(shops);
   useEffect(() => {
@@ -57,6 +69,7 @@ export function BarberProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const socket = getSocket();
+    socket.connect();
 
     const onConnect = () => {
       console.log('Socket connected, rejoining rooms...');
@@ -121,7 +134,18 @@ export function BarberProvider({ children }: { children: ReactNode }) {
   const fetchShopBySlug = useCallback(async (slug: string, silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const res = await fetch(`/api/shops/${slug}`, { cache: 'no-store' });
+      
+      let token = typeof window !== 'undefined' ? localStorage.getItem('saas_admin_token') : null;
+      if (!token) token = typeof window !== 'undefined' ? localStorage.getItem('barber_auth_token') : null;
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`/api/shops/${slug}`, { 
+        cache: 'no-store',
+        headers
+      });
       if (res.ok) {
         const data = await res.json();
         setShops(prev => {
@@ -164,9 +188,14 @@ export function BarberProvider({ children }: { children: ReactNode }) {
 
   const updateShop = useCallback(async (slug: string, updates: Partial<BarberShop>) => {
     try {
+      let token = typeof window !== 'undefined' ? localStorage.getItem('saas_admin_token') : null;
+      if (!token) token = typeof window !== 'undefined' ? localStorage.getItem('barber_auth_token') : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch(`/api/shops/${slug}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(updates)
       });
       if (res.ok) {

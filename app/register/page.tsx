@@ -7,7 +7,7 @@ import { motion } from 'motion/react';
 import { useBarberData } from '@/hooks/use-barber-data';
 import { usePlans } from '@/hooks/use-plans';
 import type { BarberShop } from '@/lib/types';
-import { maskPhone, maskCPF, maskCNPJ, validateCPF, validateCNPJ } from '@/lib/utils';
+import { maskPhone, maskCPF, maskCNPJ, validateCPF, validateCNPJ, normalizePhone } from '@/lib/utils';
 
 function RegisterForm() {
   const router = useRouter();
@@ -44,7 +44,7 @@ function RegisterForm() {
   };
 
   const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, '');
+    const val = normalizePhone(e.target.value);
     if (val.length <= 11) {
       setFormData({ ...formData, document: maskCPF(e.target.value) });
     } else {
@@ -75,7 +75,7 @@ function RegisterForm() {
       return;
     }
 
-    const doc = formData.document.replace(/\D/g, '');
+    const doc = normalizePhone(formData.document);
     if (doc.length === 11) {
       if (!validateCPF(formData.document)) {
         setError('CPF inválido.');

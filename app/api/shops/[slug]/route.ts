@@ -1,75 +1,159 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { getAuthUser } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
   try {
     const { slug } = await params;
-    
-    let shop = await prisma.barberShop.findUnique({
+    const user = await getAuthUser();
+
+    // Primeiro busca básico (leve)
+    const shop = await prisma.barberShop.findUnique({
       where: { slug },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        address: true,
+        phone: true,
+        logo: true,
+        banner: true,
+        status: true,
+        primaryColor: true,
+        openingHours: true,
+        plan: true
+      }
+    });
+
+    if (!shop) {
+      return NextResponse.json(
+        { error: 'Shop not found' },
+        { status: 404 }
+      );
+    }
+
+    const isAdmin =
+      user && (user.role === 'SAAS_ADMIN' || user.shopId === shop.id);
+
+    // ================= ADMIN =================
+    if (isAdmin) {
+      const fullData = await prisma.barberShop.findUnique({
+        where: { id: shop.id },
+        include: {
+          services: { orderBy: { id: 'desc' } },
+          barbers: { orderBy: { id: 'desc' } },
+          appointments: {
+            orderBy: { date: 'desc' },
+            include: {
+              service: true,
+              barber: true
+            }
+          },
+          reviews: {
+            orderBy: { createdAt: 'desc' }
+          },
+          users: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              role: true
+            }
+          },
+          subscriptions: {
+            orderBy: { createdAt: 'desc' }
+          }
+        }
+      });
+
+      const activeSub = fullData?.subscriptions?.[0];
+
+      return NextResponse.json({
+        ...fullData,
+        openingHours: safeJson(fullData?.openingHours),
+        subscriptions: fullData?.subscriptions.map(formatSub)
+      });
+    }
+
+    // ================= PUBLIC =================
+    const publicData = await prisma.barberShop.findUnique({
+      where: { id: shop.id },
       include: {
-        services: true,
-        barbers: true,
+        services: { orderBy: { id: 'desc' } },
+        barbers: { orderBy: { id: 'desc' } },
         appointments: {
-          orderBy: { createdAt: 'desc' },
-          include: { 
-            service: true,
-            barber: true
+          where: {
+            status: { in: ['pending', 'confirmed'] }
+          },
+          select: {
+            id: true,
+            date: true,
+            time: true,
+            barberId: true,
+            serviceId: true,
+            status: true,
+            customerName: true,
+            customerPhone: true
           }
         },
         reviews: {
-          orderBy: { createdAt: 'desc' }
-        },
-        users: true,
-        subscriptions: {
+          where: { status: 'approved_for_display' },
+          take: 20,
           orderBy: { createdAt: 'desc' }
         }
       }
     });
 
-    if (!shop) {
-      return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
-    }
-
-    // Check for expiration
-    const activeSubscription = shop.subscriptions[0];
-    if (activeSubscription && activeSubscription.currentPeriodEnd < new Date() && shop.status !== 'expired') {
-      // Free plans might not expire, but let's assume they do if currentPeriodEnd is set
-      // Actually, if it's a free plan, maybe it shouldn't expire? Let's just check the date.
-      await prisma.barberShop.update({
-        where: { id: shop.id },
-        data: { status: 'expired' }
-      });
-      await prisma.subscription.update({
-        where: { id: activeSubscription.id },
-        data: { status: 'expired' }
-      });
-      shop.status = 'expired';
-      activeSubscription.status = 'expired';
-    }
-
     return NextResponse.json({
       ...shop,
-      adminEmail: shop.users?.[0]?.email,
-      openingHours: shop.openingHours ? JSON.parse(shop.openingHours) : undefined,
-      subscriptions: shop.subscriptions.map(sub => ({
-        ...sub,
-        createdAt: sub.createdAt.toISOString(),
-        updatedAt: sub.updatedAt.toISOString(),
-        currentPeriodEnd: sub.currentPeriodEnd.toISOString()
-      }))
+      openingHours: safeJson(shop.openingHours),
+      services: publicData?.services.filter(s => s.active),
+      barbers: publicData?.barbers.filter(b => b.active),
+      appointments: publicData?.appointments,
+      reviews: publicData?.reviews
     });
+
   } catch (error) {
-    console.error('Error fetching shop:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('GET_SHOP_ERROR:', error);
+
+    return NextResponse.json(
+      { error: 'Erro interno' },
+      { status: 500 }
+    );
   }
 }
 
-export async function PUT(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+// ================= UTILS =================
+function safeJson(value?: string | null) {
   try {
+    return value ? JSON.parse(value) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function formatSub(sub: any) {
+  return {
+    ...sub,
+    createdAt: sub.createdAt.toISOString(),
+    updatedAt: sub.updatedAt.toISOString(),
+    currentPeriodEnd: sub.currentPeriodEnd.toISOString()
+  };
+}
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  try {
+    const user = await getAuthUser();
     const { slug } = await params;
     const body = await request.json();
     
@@ -126,8 +210,44 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
       for (const service of servicesToDelete) {
         try {
           await prisma.service.delete({ where: { id: service.id } });
+          // Log deletion
+          await prisma.systemLog.create({
+            data: {
+              userId: user?.userId || 'system',
+              action: 'DELETE_SERVICE',
+              target: currentShop.name,
+              details: `Serviço "${service.name}" removido definitivamente.`,
+              type: 'info'
+            }
+          });
         } catch (e) {
           console.error(`Could not delete service ${service.id}, it might have appointments.`);
+        }
+      }
+
+      // Check for updates or activations/deactivations
+      for (const s of body.services) {
+        const existing = existingServices.find(es => es.id === s.id);
+        if (existing && existing.active !== s.active) {
+          await prisma.systemLog.create({
+            data: {
+              userId: user?.userId || 'system',
+              action: s.active ? 'ACTIVATE_SERVICE' : 'DEACTIVATE_SERVICE',
+              target: currentShop.name,
+              details: `Serviço "${s.name}" foi ${s.active ? 'ativado' : 'desativado'}.`,
+              type: 'info'
+            }
+          });
+        } else if (!existing) {
+          await prisma.systemLog.create({
+            data: {
+              userId: user?.userId || 'system',
+              action: 'CREATE_SERVICE',
+              target: currentShop.name,
+              details: `Novo serviço criado: "${s.name}" (R$ ${s.price})`,
+              type: 'info'
+            }
+          });
         }
       }
 
@@ -148,8 +268,44 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
       for (const barber of barbersToDelete) {
         try {
           await prisma.barber.delete({ where: { id: barber.id } });
+          // Log deletion
+          await prisma.systemLog.create({
+            data: {
+              userId: user?.userId || 'system',
+              action: 'DELETE_BARBER',
+              target: currentShop.name,
+              details: `Barbeiro "${barber.name}" removido definitivamente.`,
+              type: 'info'
+            }
+          });
         } catch (e) {
           console.error(`Could not delete barber ${barber.id}, it might have appointments.`);
+        }
+      }
+
+      // Check for updates or activations/deactivations
+      for (const b of body.barbers) {
+        const existing = existingBarbers.find(eb => eb.id === b.id);
+        if (existing && existing.active !== b.active) {
+          await prisma.systemLog.create({
+            data: {
+              userId: user?.userId || 'system',
+              action: b.active ? 'ACTIVATE_BARBER' : 'DEACTIVATE_BARBER',
+              target: currentShop.name,
+              details: `Barbeiro "${b.name}" foi ${b.active ? 'ativado' : 'desativado'}.`,
+              type: 'info'
+            }
+          });
+        } else if (!existing) {
+          await prisma.systemLog.create({
+            data: {
+              userId: user?.userId || 'system',
+              action: 'CREATE_BARBER',
+              target: currentShop.name,
+              details: `Novo barbeiro adicionado: "${b.name}"`,
+              type: 'info'
+            }
+          });
         }
       }
 
@@ -217,8 +373,32 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
       }
     });
 
+    // Log status change if applicable
+    if (updateData.status && updateData.status !== currentShop.status) {
+      await prisma.systemLog.create({
+        data: {
+          userId: user?.userId || 'system',
+          action: 'SHOP_STATUS_CHANGED',
+          target: shop.name,
+          details: `Status da barbearia alterado de ${currentShop.status} para ${updateData.status}`,
+          type: updateData.status === 'blocked' ? 'warning' : 'info'
+        }
+      });
+    }
+
     // Register payment and update subscription if plan was updated
     if (isPlanUpdate && shop.plan) {
+      // Log plan change
+      await prisma.systemLog.create({
+        data: {
+          userId: user?.userId || 'system',
+          action: 'SHOP_PLAN_CHANGED',
+          target: shop.name,
+          details: `Plano alterado para ${shop.plan.name} (${shop.plan.interval === 'year' ? 'Anual' : 'Mensal'})`,
+          type: 'info'
+        }
+      });
+
       await prisma.payment.create({
         data: {
           shopId: shop.id,
@@ -312,7 +492,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
 
     return NextResponse.json({
       ...updatedShop,
-      adminEmail: adminEmail || updatedShop?.users?.[0]?.email,
       openingHours: updatedShop?.openingHours ? JSON.parse(updatedShop.openingHours) : undefined,
       subscriptions: updatedShop?.subscriptions.map(sub => ({
         ...sub,

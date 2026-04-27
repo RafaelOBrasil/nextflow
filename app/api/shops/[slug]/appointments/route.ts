@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getAuthUser } from '@/lib/auth-utils';
 
 const timeToMinutes = (time: string): number => {
   const [h, m] = time.split(':').map(Number);
@@ -8,6 +9,7 @@ const timeToMinutes = (time: string): number => {
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
+    const user = await getAuthUser();
     const { slug } = await params;
     const body = await request.json();
     const { customerName, customerPhone, date, time, serviceId, barberId } = body;
@@ -60,6 +62,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         barberId,
         shopId: shop.id,
         status
+      },
+      include: {
+        service: true,
+        barber: true
+      }
+    });
+
+    // Add log
+    await prisma.systemLog.create({
+      data: {
+        userId: user?.userId || 'system',
+        action: 'CREATE_APPOINTMENT',
+        target: shop.name,
+        details: `Novo agendamento criado para ${customerName} em ${date} ${time} (${appointment.service.name})`,
+        type: 'info'
       }
     });
 

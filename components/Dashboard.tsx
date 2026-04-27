@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Users, Scissors, TrendingUp, Plus } from 'lucide-react';
 import PlanNotification from './PlanNotification';
+import { useRouter } from 'next/navigation';
 
 export default function Dashboard({ shopId }: { shopId: string }) {
+  const router = useRouter();
   const [stats, setStats] = useState({
     appointments: 0,
     maxAppointments: 0,
@@ -49,7 +51,6 @@ export default function Dashboard({ shopId }: { shopId: string }) {
       alert(data.message || data.error);
     } else {
       alert('Agendamento criado com sucesso!');
-      window.location.reload();
     }
   };
 
@@ -72,7 +73,7 @@ export default function Dashboard({ shopId }: { shopId: string }) {
           </button>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <StatCard 
             title="Agendamentos" 
             value={stats.appointments.toString()} 
@@ -82,7 +83,7 @@ export default function Dashboard({ shopId }: { shopId: string }) {
           <StatCard 
             title="Clientes" 
             value="124" 
-            sub="+12% este mês"
+            sub="+12%"
             icon={<Users className="text-purple-500" />} 
           />
           <StatCard 
@@ -96,6 +97,12 @@ export default function Dashboard({ shopId }: { shopId: string }) {
             value="R$ 4.250" 
             sub="Estimado"
             icon={<TrendingUp className="text-emerald-500" />} 
+          />
+          <StatCard 
+            title="Ticket Médio" 
+            value="R$ 53,12" 
+            sub="Por serviço"
+            icon={<TrendingUp className="text-sky-500" />} 
           />
         </div>
 
