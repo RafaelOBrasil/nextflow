@@ -90,7 +90,7 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
         console.error('Error parsing recent shops');
       }
     }
-  }, [initialShop.slug, searchParams, fetchShopBySlug]);
+  }, [initialShop.slug, searchParams, fetchShopBySlug, shop.appointments]);
 
   const approvedReviews = (shop.reviews || []).filter(r => r.status === 'approved' || r.status === 'approved_for_display');
 

@@ -68,7 +68,7 @@ export default function AdminPage() {
     if (shopInstance && (activeTab !== 'settings' || !shop)) {
       setShop(shopInstance);
     }
-  }, [shopInstance, activeTab]);
+  }, [shopInstance, activeTab, shop]);
 
   const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'hours' | 'admin'>('general');
   const [isSaving, setIsSaving] = useState(false);

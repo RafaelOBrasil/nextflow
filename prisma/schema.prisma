@@ -30,7 +30,7 @@ model Plan {
   price           Float
   discount        Float    @default(0)
   interval        String   // "month" | "year"
-  features        String[]   // JSON string of features
+  features        String   // JSON string of features
   maxAppointments Int?     // null for unlimited
   isPopular       Boolean  @default(false)
   monthlyPlanId   String?
