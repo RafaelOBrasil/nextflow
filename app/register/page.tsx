@@ -7,13 +7,17 @@ import { motion } from 'motion/react';
 import { useBarberData } from '@/hooks/use-barber-data';
 import { usePlans } from '@/hooks/use-plans';
 import type { BarberShop } from '@/lib/types';
-import { maskPhone, maskCPF, maskCNPJ, validateCPF, validateCNPJ, normalizePhone } from '@/lib/utils';
+import { maskPhone, maskCPF, maskCNPJ, validateCPF, validateCNPJ, normalizePhone, normalizeNumber } from '@/lib/utils';
 
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { addShop, shops, loading } = useBarberData();
+  const { addShop, shops, loading, fetchShops } = useBarberData();
   const { plans } = usePlans();
+
+  useEffect(() => {
+    fetchShops();
+  }, [fetchShops]);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -25,6 +29,21 @@ function RegisterForm() {
     document: '',
     planId: searchParams?.get('planId') || 'p1'
   });
+
+  useEffect(() => {
+    if (formData.name) {
+      const generatedSlug = formData.name
+        .toLowerCase()
+        .normalize('NFD') // Normaliza para separar acentos
+        .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+        .replace(/[^a-z0-9\s-]/g, '') // Remove caracteres especiais
+        .trim()
+        .replace(/\s+/g, '-') // Espaços para hífens
+        .replace(/-+/g, '-'); // Evita múltiplos hífens
+      
+      setFormData(prev => ({ ...prev, slug: generatedSlug }));
+    }
+  }, [formData.name]);
 
   const [error, setError] = useState('');
 
@@ -44,7 +63,7 @@ function RegisterForm() {
   };
 
   const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = normalizePhone(e.target.value);
+    const val = normalizeNumber(e.target.value);
     if (val.length <= 11) {
       setFormData({ ...formData, document: maskCPF(e.target.value) });
     } else {
@@ -75,7 +94,7 @@ function RegisterForm() {
       return;
     }
 
-    const doc = normalizePhone(formData.document);
+    const doc = normalizeNumber(formData.document);
     if (doc.length === 11) {
       if (!validateCPF(formData.document)) {
         setError('CPF inválido.');
@@ -155,9 +174,14 @@ function RegisterForm() {
     };
 
     if (selectedPlan.price === 0) {
-      await addShop(newShop);
-      await autoLogin();
-      router.push(`/${slug}/admin`);
+      try {
+        await addShop(newShop);
+        await autoLogin();
+        router.push(`/${slug}/admin`);
+      } catch (err: any) {
+        setError(err.message || 'Erro ao criar barbearia. Tente novamente.');
+        setLoadingSubmit(false);
+      }
     } else {
       // Payment flow
       try {
@@ -179,10 +203,13 @@ function RegisterForm() {
           const { init_point } = await res.json();
           window.location.href = init_point;
         } else {
-          setError('Erro ao iniciar pagamento.');
+          const data = await res.json();
+          setError(data.error || 'Erro ao iniciar pagamento.');
+          setLoadingSubmit(false);
         }
-      } catch (error) {
-        setError('Erro ao processar pagamento.');
+      } catch (err: any) {
+        setError(err.message || 'Erro ao processar cadastro e pagamento.');
+        setLoadingSubmit(false);
       }
     }
     setLoadingSubmit(false);
@@ -232,17 +259,17 @@ function RegisterForm() {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Link Personalizado (slug)</label>
+              <div className="space-y-1.5 opacity-80">
+                <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Link Personalizado (Automático)</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold">/</span>
                   <input 
                     type="text" 
-                    placeholder="sua-barbearia"
+                    placeholder="link-gerado-automaticamente"
                     value={formData.slug}
-                    onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
-                    className="w-full pl-8 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 transition-all font-medium"
-                    required
+                    readOnly
+                    className="w-full pl-8 pr-4 py-3 rounded-xl bg-neutral-100 border border-neutral-100 focus:outline-none cursor-not-allowed font-medium text-neutral-500"
+                    title="O link é gerado automaticamente com base no nome da barbearia"
                   />
                 </div>
               </div>

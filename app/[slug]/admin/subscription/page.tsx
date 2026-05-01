@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useBarberData } from '@/hooks/use-barber-data';
 import { usePlans } from '@/hooks/use-plans';
-import { Check, ArrowLeft, Crown, Zap, ShieldCheck, Star, Info, AlertCircle, X } from 'lucide-react';
+import { Check, ArrowLeft, Crown, Zap, ShieldCheck, Star, Info, AlertCircle, X, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -220,6 +220,8 @@ export default function SubscriptionPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
           <AnimatePresence mode="wait">
             {filteredPlans.map((plan, i) => {
+              const previousPlan = i > 0 ? filteredPlans[i - 1] : null;
+              const specificFeatures = allFeatures.filter(f => plan.features.includes(f.key));
               const isCurrentPlan = shop.planId === plan.id;
               const isUpgrade = currentPlan ? plan.price > currentPlan.price : plan.price > 0;
               const isDisabled = isCurrentPlan || (currentPlan && currentPlan.price > 0 && plan.price === 0);
@@ -263,7 +265,7 @@ export default function SubscriptionPage() {
                       )}
                     </div>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-5xl font-black tracking-tighter">R$ {plan.price.toFixed(2)}</span>
+                      <span className="text-[44px] font-black tracking-tighter">R$ {plan.price.toFixed(2)}</span>
                       <span className="text-neutral-400 text-sm font-bold uppercase tracking-widest">
                         /{plan.interval === 'month' ? 'mês' : 'ano'}
                       </span>
@@ -278,22 +280,33 @@ export default function SubscriptionPage() {
 
                   <div className="space-y-5 mb-12 flex-grow">
                     <p className="text-[10px] font-black text-neutral-300 uppercase tracking-[0.2em] mb-2">O que está incluso</p>
-                    {allFeatures.map((feature) => {
-                      const hasFeature = plan.features.includes(feature.key);
-                      return (
-                        <div key={feature.id} className="flex items-start gap-4">
-                          <div className={`mt-0.5 rounded-full p-1 ${hasFeature ? 'bg-emerald-500 text-white' : 'bg-neutral-100 text-neutral-300'}`}>
-                            <Check className="w-3 h-3" />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className={`text-sm font-bold ${hasFeature ? 'text-neutral-900' : 'text-neutral-400 line-through'}`}>
-                              {feature.name}
-                            </span>
-                            {hasFeature && <span className="text-[10px] text-neutral-400 font-medium">{feature.description}</span>}
-                          </div>
+                    
+                    {previousPlan && (
+                      <div className="flex items-start gap-4">
+                        <div className="mt-0.5 rounded-full p-1 bg-neutral-900 text-white">
+                          <Plus className="w-3 h-3" />
                         </div>
-                      );
-                    })}
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-neutral-900">
+                            Tudo do plano {previousPlan.name}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {specificFeatures.filter(f => !previousPlan || !previousPlan.features.includes(f.key)).map((feature) => (
+                      <div key={feature.id} className="flex items-start gap-4">
+                        <div className="mt-0.5 rounded-full p-1 bg-emerald-500 text-white">
+                          <Check className="w-3 h-3" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-neutral-900">
+                            {feature.name}
+                          </span>
+                          <span className="text-[10px] text-neutral-400 font-medium">{feature.description}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
                   <button

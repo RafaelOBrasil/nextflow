@@ -90,7 +90,7 @@ export async function GET(req: Request) {
       }
     }
 
-    if (paymentStatus === 'approved' && shop && planId) {
+      if (paymentStatus === 'approved' && shop && planId) {
       await prisma.barberShop.update({
         where: { slug },
         data: { 
@@ -102,15 +102,35 @@ export async function GET(req: Request) {
       const plan = await prisma.plan.findUnique({ where: { id: planId } });
       const daysToAdd = plan?.interval === 'year' ? 365 : 30;
       
-      await prisma.subscription.updateMany({
+      const activeSub = await prisma.subscription.findFirst({
         where: { shopId: shop.id },
-        data: {
-          status: 'active',
-          planId,
-          currentPeriodEnd: new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000),
-          updatedAt: new Date()
-        }
+        orderBy: { createdAt: 'desc' }
       });
+
+      const baseDate = activeSub && activeSub.currentPeriodEnd.getTime() > Date.now() 
+        ? activeSub.currentPeriodEnd 
+        : new Date();
+
+      if (activeSub) {
+        await prisma.subscription.update({
+          where: { id: activeSub.id },
+          data: {
+            status: 'active',
+            planId,
+            currentPeriodEnd: new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000),
+            updatedAt: new Date()
+          }
+        });
+      } else {
+        await prisma.subscription.create({
+          data: {
+            shopId: shop.id,
+            planId,
+            status: 'active',
+            currentPeriodEnd: new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000),
+          }
+        });
+      }
     }
 
     return NextResponse.json({ status: paymentStatus });
@@ -226,14 +246,27 @@ export async function POST(req: Request) {
           orderBy: { createdAt: 'desc' }
         });
 
+        const baseDate = activeSub && activeSub.currentPeriodEnd.getTime() > Date.now() 
+          ? activeSub.currentPeriodEnd 
+          : new Date();
+
         if (activeSub) {
           await prisma.subscription.update({
             where: { id: activeSub.id },
             data: {
               status: 'active',
               planId: finalPlanId || undefined,
-              currentPeriodEnd: new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000),
+              currentPeriodEnd: new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000),
               updatedAt: new Date()
+            }
+          });
+        } else if (finalPlanId) {
+          await prisma.subscription.create({
+            data: {
+              shopId: shop.id,
+              planId: finalPlanId,
+              status: 'active',
+              currentPeriodEnd: new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000),
             }
           });
         }

@@ -69,7 +69,7 @@ export async function POST(request: Request) {
         name,
         price,
         interval,
-        features,
+        features: typeof features === 'string' ? features : JSON.stringify(features),
         maxAppointments,
         isPopular,
         discount,

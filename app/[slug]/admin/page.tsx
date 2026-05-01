@@ -237,7 +237,7 @@ export default function AdminPage() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'banner' | 'logo') => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'banner' | 'logo') => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
@@ -246,21 +246,43 @@ export default function AdminPage() {
       }
       if (!shop) return;
       setIsSaving(true);
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const result = reader.result as string;
-        const updated = { ...shop, [field]: result };
+      
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('type', field);
+        formData.append('slug', shop.slug);
+
+        let token = localStorage.getItem('saas_admin_token');
+        if (!token) token = localStorage.getItem('barber_auth_token');
+
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers,
+          body: formData,
+        });
+
+        if (!res.ok) throw new Error('Falha no upload');
+
+        const data = await res.json();
+        const updated = { ...shop, [field]: data.url };
         setShop(updated);
         await updateShop(slug, updated);
-        setIsSaving(false);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Upload error:', error);
+        alert('Erro ao fazer upload da imagem.');
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
-  const handleBarberImageUpload = (e: React.ChangeEvent<HTMLInputElement>, barberId: string) => {
+  const handleBarberImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, barberId: string) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
@@ -269,16 +291,38 @@ export default function AdminPage() {
       }
       if (!shop) return;
       setIsSaving(true);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
+      
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('type', 'barber');
+        formData.append('slug', shop.slug);
+
+        let token = localStorage.getItem('saas_admin_token');
+        if (!token) token = localStorage.getItem('barber_auth_token');
+
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers,
+          body: formData,
+        });
+
+        if (!res.ok) throw new Error('Falha no upload');
+
+        const data = await res.json();
         const newBarbers = (shop.barbers || []).map(b => 
-          b.id === barberId ? { ...b, avatar: result } : b
+          b.id === barberId ? { ...b, avatar: data.url } : b
         );
         setShop({ ...shop, barbers: newBarbers });
+      } catch (error) {
+        console.error('Upload error:', error);
+        alert('Erro ao fazer upload da imagem do barbeiro.');
+      } finally {
         setIsSaving(false);
-      };
-      reader.readAsDataURL(file);
+      }
     }
   };
 

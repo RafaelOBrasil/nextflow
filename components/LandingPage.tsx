@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Scissors, Calendar, Shield, ArrowRight, Star, MapPin, Phone, Check, Crown } from 'lucide-react';
+import { Scissors, Calendar, Shield, ArrowRight, Star, MapPin, Phone, Check, Crown, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 import { usePlans } from '@/hooks/use-plans';
 import Image from 'next/image';
@@ -206,7 +206,11 @@ export default function LandingPage() {
               viewport={{ once: true }}
               className="flex flex-wrap justify-center gap-8 max-w-6xl mx-auto"
             >
-              {plans.filter(p => p.interval === planType).map((plan) => (
+              {[...plans].filter(p => p.interval === planType).sort((a, b) => a.price - b.price).map((plan, index, sortedPlans) => {
+                const previousPlan = index > 0 ? sortedPlans[index - 1] : null;
+                const specificFeatures = allFeatures.filter(f => plan.features.includes(f.key));
+                
+                return (
                 <motion.div 
                   key={plan.id}
                   variants={itemVariants}
@@ -225,7 +229,7 @@ export default function LandingPage() {
                   <div className="mb-8 md:mb-10">
                     <h3 className="text-2xl md:text-3xl font-bold mb-3">{plan.name}</h3>
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-4xl md:text-5xl font-bold">
+                      <span className="text-[44px] font-bold">
                         {plan.price === 0 ? 'Grátis' : `R$ ${plan.price.toFixed(2)}`}
                       </span>
                       {plan.price !== 0 && (
@@ -240,19 +244,27 @@ export default function LandingPage() {
                   </div>
 
                   <div className="space-y-4 md:space-y-5 mb-10 md:mb-12 flex-grow">
-                    {allFeatures.map((feature) => {
-                      const hasFeature = plan.features.includes(feature.key);
-                      return (
-                        <div key={feature.id} className="flex items-start gap-3.5">
-                          <div className={`mt-1 rounded-full p-0.5 ${hasFeature ? 'bg-emerald-100 text-emerald-600' : 'bg-neutral-100 text-neutral-400'}`}>
-                            <Check className="w-4 h-4" />
-                          </div>
-                          <span className={`text-base md:text-lg ${hasFeature ? 'text-neutral-900 font-medium' : 'text-neutral-400 line-through'}`}>
-                            {feature.name}
-                          </span>
+                    {previousPlan && (
+                      <div className="flex items-start gap-3.5">
+                        <div className="mt-1 rounded-full p-0.5 bg-neutral-900 text-white">
+                          <Plus className="w-4 h-4" />
                         </div>
-                      );
-                    })}
+                        <span className="text-base md:text-lg text-neutral-900 font-bold">
+                          Tudo do plano {previousPlan.name}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {specificFeatures.filter(f => !previousPlan || !previousPlan.features.includes(f.key)).map((feature) => (
+                      <div key={feature.id} className="flex items-start gap-3.5">
+                        <div className="mt-1 rounded-full p-0.5 bg-emerald-100 text-emerald-600">
+                          <Check className="w-4 h-4" />
+                        </div>
+                        <span className="text-base md:text-lg text-neutral-900 font-medium">
+                          {feature.name}
+                        </span>
+                      </div>
+                    ))}
                   </div>
 
                   <motion.button
@@ -268,7 +280,8 @@ export default function LandingPage() {
                     Começar Agora
                   </motion.button>
                 </motion.div>
-              ))}
+                );
+              })}
             </motion.div>
           </div>
         </div>

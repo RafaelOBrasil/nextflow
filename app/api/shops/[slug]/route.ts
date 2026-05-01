@@ -44,6 +44,14 @@ export async function GET(
     const isAdmin =
       user && (user.role === 'SAAS_ADMIN' || user.shopId === shop.id);
 
+    // Bloquear acesso público se não estiver ativa
+    if (!isAdmin && shop.status !== 'active' && shop.status !== 'trial') {
+      return NextResponse.json(
+        { error: 'Esta barbearia não está disponível no momento.' },
+        { status: 403 }
+      );
+    }
+
     // ================= ADMIN =================
     if (isAdmin) {
       const fullData = await prisma.barberShop.findUnique({

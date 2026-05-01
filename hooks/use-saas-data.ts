@@ -180,24 +180,7 @@ export function useSaaSData() {
     }
   }, []);
 
-  // Automatic blocking logic
-  useEffect(() => {
-    if (!loading && shops.length > 0) {
-      shops.forEach(shop => {
-        const activeSubscription = shop.subscriptions?.[0];
-        if (activeSubscription && shop.status !== 'blocked') {
-          const expirationDate = new Date(activeSubscription.currentPeriodEnd);
-          const sevenDaysAfterExpiration = new Date(expirationDate);
-          sevenDaysAfterExpiration.setDate(sevenDaysAfterExpiration.getDate() + 7);
-          
-          if (new Date() > sevenDaysAfterExpiration) {
-            updateShop(shop.slug, { status: 'blocked' });
-            addLog('AUTO_BLOCK', shop.name, 'Shop automatically blocked due to expiration.');
-          }
-        }
-      });
-    }
-  }, [loading, shops, updateShop, addLog]);
+  // Automatic blocking logic handled by backend (plan-utils.ts / checkPlanStatus)
 
   const toggleShopStatus = useCallback((shopId: string) => {
     const shop = shops.find(s => s.id === shopId);

@@ -17,7 +17,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         name,
         price,
         interval,
-        features,
+        features: features ? (typeof features === 'string' ? features : JSON.stringify(features)) : undefined,
         maxAppointments,
         isPopular,
         discount,

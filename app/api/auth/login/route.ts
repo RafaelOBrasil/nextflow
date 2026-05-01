@@ -54,11 +54,20 @@ export async function POST(request: Request) {
     }
 
     // Regra de negócio (importante)
-    if (user.shop && ['blocked', 'expired'].includes(user.shop.status)) {
-      return NextResponse.json(
-        { error: 'Loja bloqueada ou expirada' },
-        { status: 403 }
-      );
+    if (user.shop) {
+      if (user.shop.status === 'pending_payment') {
+        return NextResponse.json(
+          { error: 'Aguardando confirmação de pagamento para liberar o acesso à sua barbearia.' },
+          { status: 403 }
+        );
+      }
+      
+      if (['blocked', 'expired'].includes(user.shop.status)) {
+        return NextResponse.json(
+          { error: 'Sua loja está bloqueada ou com assinatura expirada.' },
+          { status: 403 }
+        );
+      }
     }
 
     // Token enxuto (sem excesso de payload)

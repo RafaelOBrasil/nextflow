@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth-utils';
+import { checkPlanStatus } from '@/lib/plan-utils';
 
 const timeToMinutes = (time: string): number => {
   const [h, m] = time.split(':').map(Number);
@@ -17,6 +18,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const shop = await prisma.barberShop.findUnique({ where: { slug } });
     if (!shop) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
+    }
+
+    const planStatus = await checkPlanStatus(shop.id);
+
+    if (planStatus.isExpired) {
+      return NextResponse.json({ 
+        error: 'Subscription expired', 
+        code: 'PLAN_EXPIRED',
+        message: 'O plano da barbearia expirou temporariamente. Não é possível agendar no momento.' 
+      }, { status: 403 });
+    }
+
+    if (planStatus.limitReached) {
+      return NextResponse.json({ 
+        error: 'Limit reached', 
+        code: 'LIMIT_REACHED',
+        message: 'A barbearia atingiu o limite de agendamentos no momento.' 
+      }, { status: 403 });
+    }
+
+    if (planStatus.isBlocked) {
+      return NextResponse.json({ 
+        error: 'Shop blocked', 
+        code: 'SHOP_BLOCKED',
+        message: 'Barbearia temporariamente indisponível.' 
+      }, { status: 403 });
     }
 
     const service = await prisma.service.findUnique({ where: { id: serviceId } });

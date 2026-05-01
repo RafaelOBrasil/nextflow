@@ -21,7 +21,7 @@ const BarberContext = createContext<BarberContextType | undefined>(undefined);
 
 export function BarberProvider({ children }: { children: ReactNode }) {
   const [shops, setShops] = useState<BarberShop[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const fetchedRef = React.useRef(false);
 
@@ -177,9 +177,14 @@ export function BarberProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const newShop = await res.json();
         setShops(prev => [...prev, newShop]);
+        return newShop;
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || 'Falha ao criar barbearia');
       }
     } catch (error) {
       console.error('Failed to add shop:', error);
+      throw error;
     }
   }, []);
 

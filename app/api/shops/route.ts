@@ -109,10 +109,41 @@ export async function POST(request: Request) {
 
     console.log('Checking if slug exists:', slug);
     // Check if slug exists
-    const existingShop = await prisma.barberShop.findUnique({ where: { slug } });
+    const existingShop = await prisma.barberShop.findUnique({ 
+      where: { slug },
+      include: { users: { where: { role: 'SHOP_ADMIN' } } }
+    });
+
     if (existingShop) {
+      // Se a loja existe mas está pendente de pagamento, e o admin é o mesmo, permite "retomar"
+      if (existingShop.status === 'pending_payment') {
+        const existingAdmin = existingShop.users[0];
+        if (existingAdmin && existingAdmin.email === adminEmail) {
+          console.log('Resuming registration for pending_payment shop');
+          // Atualiza a senha e dados se necessário para garantir que o usuário tenha acesso ao novo checkout
+          const hashedPassword = await bcrypt.hash(adminPassword, 10);
+          
+          await prisma.user.update({
+            where: { id: existingAdmin.id },
+            data: { password: hashedPassword }
+          });
+          
+          // Retorna a loja existente para prosseguir no frontend
+          return NextResponse.json({
+            ...existingShop,
+            openingHours: existingShop.openingHours ? JSON.parse(existingShop.openingHours) : undefined
+          });
+        }
+      }
+      
       console.log('Slug already exists:', slug);
-      return NextResponse.json({ error: 'Slug already exists' }, { status: 400 });
+      return NextResponse.json({ error: 'Este link (slug) já está em uso.' }, { status: 400 });
+    }
+
+    // Check if email exists
+    const existingUser = await prisma.user.findUnique({ where: { email: adminEmail } });
+    if (existingUser) {
+      return NextResponse.json({ error: 'Este e-mail já está em uso por outro administrador.' }, { status: 400 });
     }
 
     console.log('Hashing password');
@@ -120,14 +151,23 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
     let finalPlanId = planId;
-    if (!finalPlanId || finalPlanId === 'p1') {
+    let selectedPlan = null;
+
+    if (finalPlanId) {
+      selectedPlan = await prisma.plan.findUnique({ where: { id: finalPlanId } });
+    }
+
+    if (!finalPlanId || finalPlanId === 'p1' || !selectedPlan) {
       const basicPlan = await prisma.plan.findFirst({
         where: { price: 0 }
       });
       if (basicPlan) {
         finalPlanId = basicPlan.id;
+        selectedPlan = basicPlan;
       }
     }
+
+    const initialStatus = status || (selectedPlan && selectedPlan.price > 0 ? 'pending_payment' : 'trial');
 
     console.log('Creating shop');
     const shop = await prisma.barberShop.create({
@@ -139,7 +179,7 @@ export async function POST(request: Request) {
         phone,
         document,
         banner,
-        status: 'trial',
+        status: initialStatus,
         planId: finalPlanId,
         openingHours: openingHours ? JSON.stringify(openingHours) : undefined,
         users: {
@@ -168,7 +208,7 @@ export async function POST(request: Request) {
         subscriptions: {
           create: {
             planId: finalPlanId,
-            status: 'trial',
+            status: initialStatus === 'pending_payment' ? 'unpaid' : 'trial',
             currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
           }
         }
