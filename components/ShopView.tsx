@@ -12,7 +12,7 @@ import {
   gerarIntervalosLivres, 
   gerarHorariosDisponiveisDinamico 
 } from '@/lib/scheduling';
-import { maskPhone, normalizePhone } from '@/lib/utils';
+import { maskPhone, normalizePhone, formatDate } from '@/lib/utils';
 
 interface ShopViewProps {
   shop: BarberShop;
@@ -197,6 +197,8 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
     );
   }
 
+
+
   const currentPlan = plans.find(p => p.id === shop.planId) || plans[0];
   const currentMonthAppointments = (shop.appointments || []).filter(apt => {
     if (!mounted || !now) return false;
@@ -209,6 +211,29 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
 
     if (currentPlan.maxAppointments !== null && currentMonthAppointments >= currentPlan.maxAppointments) {
       alert('Esta barbearia atingiu o limite de agendamentos para este mês. Por favor, tente novamente no próximo mês ou entre em contato diretamente.');
+      return;
+    }
+
+    // Verificar se a data escolhida está em um período de bloqueio
+    let blackoutReason = '';
+    const isBlackout = (shop.blackoutPeriods || []).some(bp => {
+        if (selectedDate >= bp.start && selectedDate <= bp.end) {
+            blackoutReason = bp.reason;
+            return true;
+        }
+        return false;
+    });
+    if (isBlackout) {
+      alert(`Este estabelecimento não está aceitando agendamentos nesta data: ${blackoutReason || 'Bloqueado'}.`);
+      return;
+    }
+    
+    // Verificar se o horário escolhido está no intervalo de almoço
+    const lunchStart = shop.lunchBreak?.start ? timeToMinutes(shop.lunchBreak.start) : -1;
+    const lunchEnd = shop.lunchBreak?.end ? timeToMinutes(shop.lunchBreak.end) : -1;
+    const selectedTimeMinutes = timeToMinutes(selectedTime);
+    if (lunchStart !== -1 && lunchEnd !== -1 && selectedTimeMinutes >= lunchStart && selectedTimeMinutes < lunchEnd) {
+      alert('Este horário está no intervalo de almoço e não pode ser agendado.');
       return;
     }
 
@@ -290,7 +315,7 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
             </div>
             <div className="flex justify-between mb-2">
               <span className="text-neutral-400 text-sm">Data:</span>
-              <span className="font-semibold">{selectedDate}</span>
+              <span className="font-semibold">{formatDate(selectedDate)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-neutral-400 text-sm">Horário:</span>
@@ -662,6 +687,9 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
                     const dayKey = dayKeys[date.getDay()];
                     const hours = (shop.openingHours || {})[dayKey];
                     const isClosed = hours?.closed;
+                    const isBlackoutDate = (shop.blackoutPeriods || []).some(bp => {
+                        return dateStr >= bp.start && dateStr <= bp.end;
+                    });
 
                     return (
                       <button
@@ -671,7 +699,7 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
                         className={`py-3 rounded-xl border text-sm font-bold transition-all flex flex-col items-center justify-center ${
                           selectedDate === dateStr 
                             ? 'bg-neutral-900 theme-bg border-neutral-900 theme-border text-white shadow-lg' 
-                            : isClosed 
+                            : isClosed
                               ? 'bg-neutral-50 border-neutral-100 text-neutral-300 cursor-not-allowed'
                               : 'border-neutral-100 hover:border-neutral-900 theme-border'
                         }`}
@@ -679,6 +707,7 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
                         <span className="capitalize">{dayName}</span>
                         <span className="text-[10px] font-normal opacity-60">{dayNum} {monthName}</span>
                         {isClosed && <span className="text-[8px] mt-1 uppercase">Fechado</span>}
+                        {isBlackoutDate && !isClosed && <span className="text-[8px] mt-1 uppercase text-rose-500">Bloqueado</span>}
                       </button>
                     );
                   })}
@@ -703,12 +732,18 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
                       const dayKey = dayKeys[date.getDay()];
                       const hours = normalizedOpeningHours[dayKey];
 
-                      console.log('Debug Agendamento:', {
+                     console.log('Debug Agendamento:', {
                         selectedDate,
                         dayKey,
                         normalizedOpeningHours,
-                        foundHours: hours
+                        foundHours: hours,
+                        lunchBreak: shop.lunchBreak
                       });
+                      
+                      const blackout = (shop.blackoutPeriods || []).find(bp => {
+                        return selectedDate >= bp.start && selectedDate <= bp.end;
+                      });
+                      if (blackout) return <p className="col-span-full text-center py-4 text-rose-500 text-sm italic">Fechado: {blackout.reason}</p>;
                       
                       if (!hours || hours.closed) return null;
 
@@ -734,7 +769,8 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
                         return { startMin, endMin: startMin + duration, date: apt.date, barberId: apt.barberId, status: apt.status };
                       });
 
-                      let freeIntervals = gerarIntervalosLivres(hours.open, hours.close, aptBlocks);
+                      console.log('Gerando intervalos livres com lunch:', shop.lunchBreak);
+                      let freeIntervals = gerarIntervalosLivres(hours.open, hours.close, aptBlocks, shop.lunchBreak);
 
                       // Se for hoje, trimar os intervalos livres que já passaram da hora atual
                       if (selectedDate === todayStr && now) {
@@ -783,7 +819,7 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
             {step > 3 && selectedDate && selectedTime && (
               <div className="flex items-center gap-6 px-2 text-neutral-600">
                 <div className="flex items-center gap-1.5 text-sm font-medium">
-                  <Calendar className="w-4 h-4" /> {selectedDate}
+                  <Calendar className="w-4 h-4" /> {formatDate(selectedDate)}
                 </div>
                 <div className="flex items-center gap-1.5 text-sm font-medium">
                   <Clock className="w-4 h-4" /> {selectedTime}

@@ -59,6 +59,8 @@ model BarberShop {
   updatedAt   DateTime @updatedAt
 
   openingHours String? // JSON string
+  lunchBreak   String? // JSON string {start: "11:00", end: "12:00"}
+  blackoutPeriods String? // JSON string [{start: "2026-05-01", end: "2026-05-01", reason: "Feriado"}]
   appointmentInterval Int @default(30) // Intervalo em minutos
   useDynamicInterval Boolean @default(false) // Habilitar cálculo automático por duração de serviço
   primaryColor String @default("#000000")

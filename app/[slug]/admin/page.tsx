@@ -9,8 +9,9 @@ import {
   timeToMinutes
 } from '@/lib/scheduling';
 import { useParams, useRouter } from 'next/navigation';
-import { maskPhone, normalizePhone } from '@/lib/utils';
+import { maskPhone, normalizePhone, formatDate } from '@/lib/utils';
 import InstallPWA from '@/components/InstallPWA';
+import LoginForm from '@/components/admin/LoginForm';
 import {
   LayoutDashboard,
   Settings,
@@ -100,15 +101,8 @@ export default function AdminPage() {
     time: ''
   });
   const [isBookingManual, setIsBookingManual] = useState(false);
-  const formatDate = (date: string) => {
-    const [y, m, d] = date.split('-');
-    return `${d}/${m}/${y}`;
-  };
-
   // Login state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
   useEffect(() => {
@@ -163,7 +157,7 @@ export default function AdminPage() {
     }
   }, [mounted, slug, isLoggedIn, fetchShopBySlug, activeTab]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent, email: string, password: string) => {
     e.preventDefault();
     if (!shop) return;
 
@@ -201,6 +195,7 @@ export default function AdminPage() {
       setLoginError('Erro ao conectar com o servidor.');
     }
   };
+
 
   const getToday = () => {
   const d = new Date()
@@ -433,43 +428,39 @@ export default function AdminPage() {
       apt => apt.date === dateStr && apt.barberId === barberId && apt.status !== 'cancelled'
     );
 
-    const blockedIntervals = currentDayAppointments.map(apt => {
-      const aptStart = timeToMinutes(apt.time);
-      let aptDuration = shop.appointmentInterval || 30;
+    const isBlackoutDate = (shop.blackoutPeriods || []).some(bp => {
+        return dateStr >= bp.start && dateStr <= bp.end;
+    });
+
+    if (isBlackoutDate) return [];
+
+    const aptBlocks = currentDayAppointments.map(apt => {
+      const startMin = timeToMinutes(apt.time);
+      let duration = shop.appointmentInterval || 30;
       if (shop.useDynamicInterval) {
         const aptService = shop.services?.find(s => s.id === apt.serviceId);
         if (aptService?.duration) {
-          aptDuration = aptService.duration;
+          duration = aptService.duration;
         }
       }
-      return { start: aptStart, end: aptStart + aptDuration };
+      return { startMin, endMin: startMin + duration, date: apt.date, barberId: apt.barberId, status: apt.status };
     });
 
-    const slots: string[] = [];
-    let currentM = timeToMinutes(hours.open);
-    const endM = timeToMinutes(hours.close);
+    let freeIntervals = gerarIntervalosLivres(hours.open, hours.close, aptBlocks, shop.lunchBreak);
 
-    let skipPastM = 0;
     if (now && dateStr === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`) {
-      skipPastM = now.getHours() * 60 + now.getMinutes();
-    }
-
-    while (currentM + currentInterval <= endM) {
-      const slotEnd = currentM + currentInterval;
-      
-      const overlap = blockedIntervals.find(b => currentM < b.end && b.start < slotEnd);
-
-      if (overlap) {
-        currentM = overlap.end;
-      } else {
-        if (currentM >= skipPastM) {
-          slots.push(minutesToTime(currentM));
+      const skipPastM = now.getHours() * 60 + now.getMinutes() + 10;
+      freeIntervals = freeIntervals.map((i: any) => {
+        if (i.end <= skipPastM) return null;
+        return {
+          start: Math.max(i.start, skipPastM),
+          end: i.end
         }
-        currentM += currentInterval;
-      }
+      }).filter(Boolean) as any;
     }
 
-    return slots;
+    const availableSlots = gerarHorariosDisponiveisDinamico(freeIntervals, currentInterval, shop.appointmentInterval || 30);
+    return availableSlots;
   };
 
   if (!mounted || shopLoading) {
@@ -524,75 +515,11 @@ export default function AdminPage() {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4 font-sans">
-        {shop.primaryColor && (
-          <style dangerouslySetInnerHTML={{ __html: `
-            .theme-bg { background-color: ${shop.primaryColor} !important; color: #fff !important; border-color: ${shop.primaryColor} !important; }
-            .theme-bg-hover:hover { opacity: 0.9 !important; }
-            .theme-text { color: ${shop.primaryColor} !important; }
-            .theme-border { border-color: ${shop.primaryColor} !important; }
-          `}} />
-        )}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full"
-        >
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-neutral-900 theme-bg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-neutral-900/20">
-              <Lock className="text-white w-8 h-8" />
-            </div>
-            <h2 className="text-2xl font-bold mb-1">Painel Administrativo</h2>
-            <p className="text-neutral-500 text-sm">Acesse para gerenciar sua barbearia</p>
-          </div>
-
-          <form onSubmit={handleLogin} className="bg-white rounded-4xl p-8 border border-neutral-200 shadow-xl space-y-4">
-            {loginError && (
-              <div className="bg-red-50 text-red-500 p-3 rounded-xl text-xs font-bold text-center">
-                {loginError}
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-neutral-400 uppercase ml-1">E-mail</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                <input
-                  type="email"
-                  placeholder="admin@barber.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Senha</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
-                  required
-                />
-              </div>
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-neutral-900 theme-bg text-white py-4 rounded-xl font-bold hover:bg-neutral-800 theme-bg-hover transition-all shadow-lg active:scale-95 mt-2"
-            >
-              Entrar no Painel
-            </button>
-          </form>
-
-          <p className="text-center mt-8 text-neutral-400 text-xs">
-            Esqueceu sua senha? Entre em contato com o suporte.
-          </p>
-        </motion.div>
-      </div>
+      <LoginForm 
+        shop={shop} 
+        error={loginError} 
+        onLogin={handleLogin} 
+      />
     );
   }
 
@@ -732,6 +659,7 @@ export default function AdminPage() {
   // Inclui Valor Gerado (concluidos), Valor Potencial (pendentes+confirmados) e Valor Cancelado
   const barberMetricsMap: Record<string, {
     name: string, 
+    avatar: string | null | undefined,
     completedCount: number, 
     completedTotal: number,
     potentialCount: number,
@@ -750,6 +678,7 @@ export default function AdminPage() {
       if (!barberMetricsMap[barberId]) {
         barberMetricsMap[barberId] = { 
           name: barber.name, 
+          avatar: barber.avatar,
           completedCount: 0, 
           completedTotal: 0,
           potentialCount: 0,
@@ -1443,15 +1372,19 @@ export default function AdminPage() {
                   <h3 className="font-bold text-lg mb-6">Produtividade por Barbeiro</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {barberMetrics.length > 0 ? barberMetrics.map((b, idx) => (
-                      <div key={idx} className="p-6 border border-neutral-100 rounded-[2rem] flex flex-col gap-4 relative overflow-hidden hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-neutral-900 rounded-2xl flex items-center justify-center text-white text-sm font-bold theme-bg">
-                            {b.name.charAt(0).toUpperCase()}
-                          </div>
+                      <div key={idx} className="p-6 border border-neutral-100 rounded-[2rem] flex flex-col items-center gap-4 relative overflow-hidden hover:shadow-md transition-shadow">
+                        <div className="flex flex-col items-center gap-3">
+                          {b.avatar ? (
+                            <img src={b.avatar} alt={b.name} className="w-16 h-16 rounded-2xl object-cover" />
+                          ) : (
+                            <div className="w-16 h-16 bg-neutral-900 rounded-2xl flex items-center justify-center text-white text-xl font-bold theme-bg">
+                              {b.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
                           <span className="font-bold text-base truncate">{b.name}</span>
                         </div>
                         
-                        <div className="grid grid-cols-1 gap-4 divide-y divide-neutral-50">
+                        <div className="grid grid-cols-1 gap-4 divide-y divide-neutral-50 w-full">
                           <div className="pt-0">
                             <div className="flex items-center justify-between mb-1">
                               <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter">Valor Gerado (Concluídos)</p>
@@ -1659,10 +1592,14 @@ export default function AdminPage() {
 
                 <div className="grid md:grid-cols-2 gap-6">
                   {(shop.barbers || []).map((barber, index) => (
-                    <div key={barber.id} className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm flex items-start gap-4">
+                    <div key={barber.id} className="bg-white p-5 rounded-2xl border border-neutral-100 shadow-sm transition-all hover:shadow-md flex items-start gap-5">
                       <div className="relative group shrink-0">
-                        <div className={`w-20 h-20 rounded-2xl overflow-hidden border border-neutral-100 ${barber.active === false ? 'grayscale opacity-60' : ''}`}>
-                          <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" />
+                        <div className={`w-20 h-20 rounded-2xl overflow-hidden border border-neutral-100 flex items-center justify-center bg-neutral-50 ${barber.active === false ? 'grayscale opacity-60' : ''}`}>
+                          {barber.avatar ? (
+                            <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="w-8 h-8 text-neutral-300" />
+                          )}
                         </div>
                         <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-2xl">
                           <Upload className="w-5 h-5 text-white" />
@@ -1739,14 +1676,23 @@ export default function AdminPage() {
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <h3 className="text-xl md:text-2xl font-bold">Avaliações</h3>
-                  <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-neutral-200 w-fit">
-                    <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                    <span className="font-bold">
-                      {shop.reviews && shop.reviews.length > 0
-                        ? (shop.reviews.reduce((acc, r) => acc + r.rating, 0) / shop.reviews.length).toFixed(1)
-                        : '5.0'}
-                    </span>
-                    <span className="text-neutral-400 text-xs">({shop.reviews?.length || 0} total)</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-neutral-200">
+                      <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                      <span className="font-bold">
+                        {shop.reviews && shop.reviews.length > 0
+                          ? (shop.reviews.reduce((acc, r) => acc + r.rating, 0) / shop.reviews.length).toFixed(1)
+                          : '5.0'}
+                      </span>
+                      <span className="text-neutral-400 text-xs">({shop.reviews?.length || 0} total)</span>
+                    </div>
+                    <button
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-900/10 active:scale-95 disabled:opacity-70 disabled:scale-100"
+                    >
+                      {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> Salvar</>}
+                    </button>
                   </div>
                 </div>
 
@@ -2012,57 +1958,84 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      {Object.entries(shop.openingHours || {}).map(([day, hours]) => (
-                        <div key={day} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-100 gap-4">
-                          <div className="flex items-center gap-4 min-w-25">
-                            <span className="font-bold text-sm capitalize">
-                              {day === 'monday' && 'Segunda'}
-                              {day === 'tuesday' && 'Terça'}
-                              {day === 'wednesday' && 'Quarta'}
-                              {day === 'thursday' && 'Quinta'}
-                              {day === 'friday' && 'Sexta'}
-                              {day === 'saturday' && 'Sábado'}
-                              {day === 'sunday' && 'Domingo'}
+                    <div className="space-y-4 pt-6 border-t border-neutral-100 mt-6">
+                      <h4 className="font-bold text-sm text-neutral-900 theme-text">Intervalo de Almoço</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <input type="time" value={shop.lunchBreak?.start || ''} onChange={(e) => setShop({...shop, lunchBreak: {...(shop.lunchBreak || {start: '', end: ''}), start: e.target.value}})} className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100" />
+                        <input type="time" value={shop.lunchBreak?.end || ''} onChange={(e) => setShop({...shop, lunchBreak: {...(shop.lunchBreak || {start: '', end: ''}), end: e.target.value}})} className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100" />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4 pt-6 border-t border-neutral-100 mt-6">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Datas Bloqueadas</label>
+                          <button 
+                            type="button"
+                            onClick={() => setShop({...shop, blackoutPeriods: [...(shop.blackoutPeriods || []), {start: '', end: '', reason: ''}]})}
+                            className="text-xs font-bold text-emerald-600 hover:text-emerald-700 theme-text"
+                          >
+                            + Adicionar Período
+                          </button>
+                        </div>
+                        <div className="space-y-3">
+                          {(shop.blackoutPeriods || []).map((bp, i) => (
+                              <div key={i} className="flex gap-2 items-center bg-neutral-50 p-3 rounded-xl border border-neutral-100">
+                                  <input type="date" value={bp.start} onChange={(e) => { const n = [...(shop.blackoutPeriods || [])]; n[i].start = e.target.value; setShop({...shop, blackoutPeriods: n}) }} className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 text-sm" />
+                                  <input type="date" value={bp.end} onChange={(e) => { const n = [...(shop.blackoutPeriods || [])]; n[i].end = e.target.value; setShop({...shop, blackoutPeriods: n}) }} className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 text-sm" />
+                                  <input type="text" placeholder="Motivo" value={bp.reason} onChange={(e) => { const n = [...(shop.blackoutPeriods || [])]; n[i].reason = e.target.value; setShop({...shop, blackoutPeriods: n}) }} className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 text-sm" />
+                                  <button onClick={() => { const n = [...(shop.blackoutPeriods || [])]; n.splice(i, 1); setShop({...shop, blackoutPeriods: n}) }} className="text-rose-500 p-2">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                              </div>
+                          ))}
+                        </div>
+                    </div>
+
+                    {/* Horários de Funcionamento */}
+                    <div className="space-y-4 pt-6 border-t border-neutral-100 mt-6">
+                      <h4 className="font-bold text-sm text-neutral-900 theme-text">Horário de Funcionamento</h4>
+                      <div className="space-y-2">
+                        {Object.entries(shop.openingHours || {}).map(([day, hours]) => (
+                          <div key={day} className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 border border-neutral-100 gap-4">
+                            <span className="font-bold text-sm capitalize min-w-[60px]">
+                              {day === 'monday' && 'Seg'}
+                              {day === 'tuesday' && 'Ter'}
+                              {day === 'wednesday' && 'Qua'}
+                              {day === 'thursday' && 'Qui'}
+                              {day === 'friday' && 'Sex'}
+                              {day === 'saturday' && 'Sáb'}
+                              {day === 'sunday' && 'Dom'}
                             </span>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-3 flex-1 justify-end">
+                            
                             {!hours.closed ? (
-                              <>
-                                <div className="relative flex-1 min-w-25 max-w-30">
-                                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
-                                  <input
-                                    type="time"
-                                    value={hours.open}
-                                    onChange={(e) => {
-                                      const newHours = { ...(shop.openingHours || {}) };
-                                      newHours[day].open = e.target.value;
-                                      setShop({ ...shop, openingHours: newHours });
-                                    }}
-                                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-white border border-neutral-200 text-sm font-bold focus:outline-none focus:border-neutral-900 theme-border"
-                                  />
-                                </div>
-                                <span className="text-neutral-400 text-xs font-bold">até</span>
-                                <div className="relative flex-1 min-w-25 max-w-30">
-                                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
-                                  <input
-                                    type="time"
-                                    value={hours.close}
-                                    onChange={(e) => {
-                                      const newHours = { ...(shop.openingHours || {}) };
-                                      newHours[day].close = e.target.value;
-                                      setShop({ ...shop, openingHours: newHours });
-                                    }}
-                                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-white border border-neutral-200 text-sm font-bold focus:outline-none focus:border-neutral-900 theme-border"
-                                  />
-                                </div>
-                              </>
+                              <div className="flex items-center gap-2 flex-1 justify-end">
+                                <input
+                                  type="time"
+                                  value={hours.open}
+                                  onChange={(e) => {
+                                    const newHours = { ...(shop.openingHours || {}) };
+                                    newHours[day].open = e.target.value;
+                                    setShop({ ...shop, openingHours: newHours });
+                                  }}
+                                  className="px-2 py-1.5 rounded-lg bg-white border border-neutral-200 text-sm font-bold w-24"
+                                />
+                                <span className="text-neutral-400 text-xs font-bold shrink-0">até</span>
+                                <input
+                                  type="time"
+                                  value={hours.close}
+                                  onChange={(e) => {
+                                    const newHours = { ...(shop.openingHours || {}) };
+                                    newHours[day].close = e.target.value;
+                                    setShop({ ...shop, openingHours: newHours });
+                                  }}
+                                  className="px-2 py-1.5 rounded-lg bg-white border border-neutral-200 text-sm font-bold w-24"
+                                />
+                              </div>
                             ) : (
-                              <span className="text-neutral-400 text-sm font-bold italic flex-1 text-center">Fechado</span>
+                              <span className="text-neutral-400 text-sm font-bold italic flex-1 text-right pr-4">Fechado</span>
                             )}
-
-                            <label className="flex items-center gap-2 cursor-pointer ml-0 sm:ml-4">
+                            
+                            <label className="flex items-center gap-2 cursor-pointer ml-4">
                               <input
                                 type="checkbox"
                                 checked={hours.closed}
@@ -2073,11 +2046,10 @@ export default function AdminPage() {
                                 }}
                                 className="w-4 h-4 rounded border-neutral-300 text-neutral-900 theme-text focus:ring-neutral-900"
                               />
-                              <span className="text-xs font-bold text-neutral-500">Fechado</span>
                             </label>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}

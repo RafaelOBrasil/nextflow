@@ -91,33 +91,64 @@ export function useSaaSData() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      fetchShops(true);
-      fetchPayments();
-      fetchLogs();
-      fetchTickets();
-      // ...
-      const stored = localStorage.getItem(SAAS_STORAGE_KEY);
-      if (stored) {
+    async function fetchDashboard() {
+      if (typeof window !== 'undefined') {
         try {
-          const parsed = JSON.parse(stored);
-          setSuperUsers(parsed.superUsers || [{ id: 'admin', name: 'SaaS Owner', email: 'owner@nextflowbarber.com', role: 'admin' }]);
-        } catch (e) {
-          console.error('Error parsing SaaS global data');
+          const token = localStorage.getItem('saas_admin_token') || localStorage.getItem('barber_auth_token');
+          const res = await fetch('/api/saas/dashboard', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            // Depending on how useBarberData/usePlans are structured, 
+            // this might need to call their setters if they exist, 
+            // but for now we focus on the data fetched here.
+            
+            // For now, we continue to rely on those hooks for basic structure,
+            // but we optimize the initial load here.
+            // A better approach would be to refactor those hooks to accept initial data.
+            
+            setPayments(data.payments.map((p: any) => ({
+              id: p.id,
+              shopId: p.shopId,
+              shopName: p.shop?.name,
+              amount: p.amount,
+              currency: p.currency,
+              status: p.status as any,
+              method: p.method as any,
+              date: p.createdAt,
+              description: p.description || ''
+            })));
+            setLogs(data.logs);
+            setTickets(data.tickets);
+          }
+        } catch (error) {
+          console.error('Error fetching dashboard:', error);
         }
-      } else {
-        // Initial defaults
-        setSuperUsers([{ id: 'admin', name: 'SaaS Owner', email: 'owner@nextflowbarber.com', role: 'admin' }]);
-        
-        localStorage.setItem(SAAS_STORAGE_KEY, JSON.stringify({
-          payments: [],
-          tickets: [],
-          superUsers: [{ id: 'admin', name: 'SaaS Owner', email: 'owner@nextflowbarber.com', role: 'admin' }]
-        }));
       }
+      setLoading(false);
     }
-    setLoading(false);
-  }, [fetchShops, fetchLogs, fetchPayments, fetchTickets]);
+    fetchDashboard();
+                             
+    const stored = localStorage.getItem(SAAS_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setSuperUsers(parsed.superUsers || [{ id: 'admin', name: 'SaaS Owner', email: 'owner@nextflowbarber.com', role: 'admin' }]);
+      } catch (e) {
+        console.error('Error parsing SaaS global data');
+      }
+    } else {
+      // Initial defaults
+      setSuperUsers([{ id: 'admin', name: 'SaaS Owner', email: 'owner@nextflowbarber.com', role: 'admin' }]);
+      
+      localStorage.setItem(SAAS_STORAGE_KEY, JSON.stringify({
+        payments: [],
+        tickets: [],
+        superUsers: [{ id: 'admin', name: 'SaaS Owner', email: 'owner@nextflowbarber.com', role: 'admin' }]
+      }));
+    }
+  }, []);
 
   const saveSaaSData = useCallback((data: { payments?: Payment[], tickets?: SupportTicket[], superUsers?: SuperUser[] }) => {
     const current = JSON.parse(localStorage.getItem(SAAS_STORAGE_KEY) || '{}');

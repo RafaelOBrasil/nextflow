@@ -38,13 +38,24 @@ export interface FreeInterval {
 export const gerarIntervalosLivres = (
   openTime: string, 
   closeTime: string, 
-  appointments: AppointmentBlock[]
+  appointments: AppointmentBlock[],
+  lunchBreak?: {start: string, end: string}
 ): FreeInterval[] => {
   const openMin = timeToMinutes(openTime);
   const closeMin = timeToMinutes(closeTime);
+  const blockApts = [...appointments];
+
+  if (lunchBreak && lunchBreak.start && lunchBreak.end) {
+    blockApts.push({
+        startMin: timeToMinutes(lunchBreak.start),
+        endMin: timeToMinutes(lunchBreak.end),
+        date: '', barberId: '', status: 'lunch'
+    });
+  }
 
   // Ordenar agendamentos pelo horário de início de forma cronológica
-  const sortedApts = [...appointments].sort((a, b) => a.startMin - b.startMin);
+  const sortedApts = [...blockApts].sort((a, b) => a.startMin - b.startMin);
+
 
   const freeIntervals: FreeInterval[] = [];
   let currentStart = openMin;

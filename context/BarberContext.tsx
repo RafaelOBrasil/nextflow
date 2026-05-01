@@ -58,10 +58,7 @@ export function BarberProvider({ children }: { children: ReactNode }) {
 
   // Removed automatic fetchShops to improve performance and scalability.
   // Each page should now fetch only the data it needs.
-  useEffect(() => {
-    setLoading(false);
-  }, []);
-
+  
   const shopsRef = React.useRef(shops);
   useEffect(() => {
     shopsRef.current = shops;

@@ -11,19 +11,22 @@ export async function GET() {
     const isSaaSAdmin = user?.role === 'SAAS_ADMIN';
 
     const shops = await prisma.barberShop.findMany({
+      take: 20, // Add pagination to prevent timeouts
       include: {
         services: true,
         barbers: true,
         appointments: {
+          take: 10,
           include: {
             service: true,
             barber: true
           }
         },
-        reviews: true,
+        reviews: { take: 10 },
         plan: true,
         users: true,
         subscriptions: {
+          take: 5,
           orderBy: { createdAt: 'desc' }
         }
       }
@@ -62,6 +65,8 @@ export async function GET() {
         status: currentStatus,
         planId: shop.planId,
         openingHours: shop.openingHours ? JSON.parse(shop.openingHours) : undefined,
+        lunchBreak: shop.lunchBreak ? JSON.parse(shop.lunchBreak) : undefined,
+        blackoutPeriods: shop.blackoutPeriods ? JSON.parse(shop.blackoutPeriods) : undefined,
         createdAt: shop.createdAt,
         updatedAt: shop.updatedAt,
         services: shop.services,

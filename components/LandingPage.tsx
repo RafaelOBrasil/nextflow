@@ -300,7 +300,7 @@ export default function LandingPage() {
                 Ver Demonstração <ArrowRight className="w-6 h-6" />
               </motion.button>
             </div>
-            <div className="flex-1 relative min-h-100 md:min-h-full bg-neutral-800">
+            <div className="flex-1 relative min-h-[400px] md:min-h-full bg-neutral-800">
               <Image 
                 src="https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=2074&auto=format&fit=crop" 
                 alt="Barber Shop Demo"
@@ -308,7 +308,7 @@ export default function LandingPage() {
                 className="object-cover opacity-50 grayscale hover:grayscale-0 transition-all duration-700"
                 referrerPolicy="no-referrer"
               />
-              <div className="absolute inset-0 bg-linear-to-t from-neutral-900 via-transparent to-transparent md:bg-linear-to-l" />
+              <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent md:bg-gradient-to-l" />
             </div>
           </motion.div>
         </div>

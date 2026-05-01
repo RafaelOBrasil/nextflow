@@ -46,7 +46,7 @@ export default function ShopPage() {
         <div className="w-20 h-20 bg-neutral-100 rounded-3xl flex items-center justify-center mb-8">
           <Scissors className="text-neutral-400 w-10 h-10" />
         </div>
-        <h1 className="text-4xl font-bold mb-4 tracking-tight">Barbearia não encontrada</h1>
+        <h1 className="text-4xl font-bold mb-4 tracking-tight font-sans">Barbearia não encontrada</h1>
         <p className="text-neutral-500 mb-8 max-w-md leading-relaxed">
           O link <span className="font-bold text-neutral-900">/{slug}</span> ainda não foi reservado por nenhuma barbearia. 
           Deseja criar sua conta agora?

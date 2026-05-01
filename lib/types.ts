@@ -103,4 +103,6 @@ export interface BarberShop {
   openingHours: {
     [key: string]: { open: string; close: string; closed: boolean };
   };
+  lunchBreak?: { start: string; end: string };
+  blackoutPeriods?: { start: string; end: string; reason: string }[];
 }

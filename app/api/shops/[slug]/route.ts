@@ -28,6 +28,8 @@ export async function GET(
         status: true,
         primaryColor: true,
         openingHours: true,
+        lunchBreak: true,
+        blackoutPeriods: true,
         plan: true
       }
     });
@@ -78,6 +80,8 @@ export async function GET(
       return NextResponse.json({
         ...fullData,
         openingHours: safeJson(fullData?.openingHours),
+        lunchBreak: safeJson(fullData?.lunchBreak),
+        blackoutPeriods: safeJson(fullData?.blackoutPeriods),
         subscriptions: fullData?.subscriptions.map(formatSub)
       });
     }
@@ -114,6 +118,8 @@ export async function GET(
     return NextResponse.json({
       ...shop,
       openingHours: safeJson(shop.openingHours),
+      lunchBreak: safeJson(shop.lunchBreak),
+      blackoutPeriods: safeJson(shop.blackoutPeriods),
       services: publicData?.services.filter(s => s.active),
       barbers: publicData?.barbers.filter(b => b.active),
       appointments: publicData?.appointments,
@@ -163,7 +169,8 @@ export async function PUT(
     const allowedFields = [
       'name', 'description', 'address', 'phone', 'document', 
       'logo', 'banner', 'status', 'planId', 'openingHours',
-      'appointmentInterval', 'useDynamicInterval', 'primaryColor'
+      'appointmentInterval', 'useDynamicInterval', 'primaryColor',
+      'lunchBreak', 'blackoutPeriods'
     ];
     
     const updateData: any = {};
@@ -173,9 +180,15 @@ export async function PUT(
       }
     }
 
-    // Convert openingHours to string if it exists
+    // Convert JSON fields to string
     if (updateData.openingHours) {
-      updateData.openingHours = JSON.stringify(updateData.openingHours);
+      updateData.openingHours = typeof updateData.openingHours === 'string' ? updateData.openingHours : JSON.stringify(updateData.openingHours);
+    }
+    if (updateData.lunchBreak) {
+      updateData.lunchBreak = typeof updateData.lunchBreak === 'string' ? updateData.lunchBreak : JSON.stringify(updateData.lunchBreak);
+    }
+    if (updateData.blackoutPeriods) {
+      updateData.blackoutPeriods = typeof updateData.blackoutPeriods === 'string' ? updateData.blackoutPeriods : JSON.stringify(updateData.blackoutPeriods);
     }
 
     // Check if plan is being updated
@@ -493,6 +506,8 @@ export async function PUT(
     return NextResponse.json({
       ...updatedShop,
       openingHours: updatedShop?.openingHours ? JSON.parse(updatedShop.openingHours) : undefined,
+      lunchBreak: updatedShop?.lunchBreak ? JSON.parse(updatedShop.lunchBreak) : undefined,
+      blackoutPeriods: updatedShop?.blackoutPeriods ? JSON.parse(updatedShop.blackoutPeriods) : undefined,
       subscriptions: updatedShop?.subscriptions.map(sub => ({
         ...sub,
         createdAt: sub.createdAt.toISOString(),
