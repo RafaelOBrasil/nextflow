@@ -1,6 +1,6 @@
 {
   "name": "Next Flow Barber - Agendamentos Online",
-  "short_name": "Next Flow",
+  "short_name": "NextFlowBarber",
   "description": "Sistema de Agendamento Profissional para Barbearias",
   "start_url": "/login",
   "display": "standalone",
