@@ -24,7 +24,7 @@ export function normalizePhone(value: string): string {
 }
 
 export function maskPhone(value: string): string {
-  const phone = normalizePhone(value);
+  const phone = normalizePhone(value).slice(0, 11);
   if (phone.length <= 2) {
     return phone;
   }

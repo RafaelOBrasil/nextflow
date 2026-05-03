@@ -30,16 +30,24 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
-    const base64String = buffer.toString('base64');
-    const dataURI = `data:${file.type};base64,${base64String}`;
-    
     let folder = `barbershop/${slug}`;
     if (type) {
       folder += `/${type}`;
     }
 
-    const result = await cloudinary.uploader.upload(dataURI, {
-      folder: folder,
+    const result: any = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder: folder },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+
+      const stream = require('stream');
+      const readableStream = new stream.PassThrough();
+      readableStream.end(buffer);
+      readableStream.pipe(uploadStream);
     });
 
     return NextResponse.json({ url: result.secure_url });

@@ -30,7 +30,15 @@ export async function GET(
         openingHours: true,
         lunchBreak: true,
         blackoutPeriods: true,
-        plan: true
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            interval: true,
+            features: true
+          }
+        }
       }
     });
 
@@ -135,6 +143,9 @@ export async function GET(
     });
 
   } catch (error) {
+    if (error instanceof Error && error.name === 'PrismaClientValidationError') {
+      console.error('PrismaClientValidationError details:', error.message);
+    }
     console.error('GET_SHOP_ERROR:', error);
 
     return NextResponse.json(

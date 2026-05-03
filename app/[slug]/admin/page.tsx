@@ -52,6 +52,7 @@ import { usePlans } from '@/hooks/use-plans';
 import Link from 'next/link';
 import { useTickets } from '@/hooks/use-tickets';
 import SupportCenter from '@/components/Support/SupportCenter';
+import PlanNotification from '@/components/PlanNotification';
 
 export default function AdminPage() {
   const params = useParams();
@@ -65,7 +66,8 @@ export default function AdminPage() {
   const [shop, setShop] = useState<BarberShop | null>(null);
 
   useEffect(() => {
-    if (shopInstance && (activeTab !== 'settings' || !shop)) {
+    const editableTabs = ['settings', 'services', 'barbers'];
+    if (shopInstance && (!editableTabs.includes(activeTab) || !shop)) {
       setShop(shopInstance);
     }
   }, [shopInstance, activeTab, shop]);
@@ -84,6 +86,8 @@ export default function AdminPage() {
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const [revenueChartPeriod, setRevenueChartPeriod] = useState<7 | 30>(7);
 
   const handleRefresh = async () => {
     if (!slug) return;
@@ -746,18 +750,18 @@ export default function AdminPage() {
   });
   const barberMetrics = Object.values(barberMetricsMap).sort((a,b) => b.completedTotal - a.completedTotal);
 
-  // Dados do grafico de 7 ultimos dias (Sempre 7 dias para visualização consistente)
-  const last7Days = Array.from({length: 7}).map((_, i) => {
+  // Dados do grafico de receita
+  const chartDaysList = Array.from({length: revenueChartPeriod}).map((_, i) => {
     if (!now) return '';
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    d.setDate(d.getDate() - (6 - i));
+    d.setDate(d.getDate() - ((revenueChartPeriod - 1) - i));
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }).filter(Boolean);
 
-  const dailyEarningsChart = last7Days.map(date => {
+  const dailyEarningsChart = chartDaysList.map(date => {
     return {
       date: date.substring(8,10) + '/' + date.substring(5,7),
       Ganhos: allApts.filter(a => a.date === date && (a.status === 'completed' || a.status === 'confirmed' || a.status === 'pending')).reduce((acc, curr) => acc + getAptPrice(curr), 0)
@@ -766,6 +770,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-neutral-50 flex font-sans">
+      <PlanNotification shopId={shop.id} shopSlug={shop.slug} />
       {shop.primaryColor && (
         <style dangerouslySetInnerHTML={{ __html: `
           .theme-bg { background-color: ${shop.primaryColor} !important; color: #fff !important; border-color: ${shop.primaryColor} !important; }
@@ -1126,10 +1131,25 @@ export default function AdminPage() {
                               <div className="flex flex-col mt-1">
                                 <span className={`text-xs ${item.status === 'pending' ? 'text-amber-700/70' : 'text-neutral-400'}`}>Serviço</span>
                                 <span className="font-medium text-xs opacity-90">
-                                  {shop?.services?.find(s => s.id === item.original.serviceId)?.name || 'Serviço'}
+                                {shop?.services?.find(s => s.id === item.original.serviceId)?.name || 'Serviço'}
                                 </span>
                               </div>
                             )}
+
+                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-neutral-100">
+                              {item.status === 'pending' && (
+                                <>
+                                  <button onClick={() => handleConfirmAppointment(item.original)} className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold h-[27px] w-[70px] pb-1 -mb-[10px] mt-0" title="Confirmar">Confirmar</button>
+                                  <button onClick={() => handleCancelAppointment(item.original)} className="px-2 py-1 bg-red-100 text-red-700 rounded text-[10px] font-bold h-[27px] w-[70px] -mb-[10px]" title="Cancelar">Cancelar</button>
+                                </>
+                              )}
+                              {item.status === 'confirmed' && (
+                                <>
+                                  <button onClick={() => handleCompleteAppointment(item.original)} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] font-bold h-[27px] w-[70px] pb-1 -mb-[10px] mt-0" title="Finalizar">Finalizar</button>
+                                  <button onClick={() => handleCancelAppointment(item.original)} className="px-2 py-1 bg-red-100 text-red-700 rounded text-[10px] font-bold h-[27px] w-[70px] -mb-[10px]" title="Cancelar">Cancelar</button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         );
                       });
@@ -1375,7 +1395,17 @@ export default function AdminPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Chart */}
                   <div className="bg-white rounded-4xl border border-neutral-200 shadow-sm p-6 flex flex-col">
-                    <h3 className="font-bold text-lg mb-6">Receita Diária (7 dias)</h3>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="font-bold text-lg">Receita Diária</h3>
+                      <select 
+                        className="text-sm border border-neutral-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-neutral-900 bg-white" 
+                        value={revenueChartPeriod} 
+                        onChange={(e) => setRevenueChartPeriod(Number(e.target.value) as 7 | 30)}
+                      >
+                        <option value={7}>7 dias</option>
+                        <option value={30}>30 dias</option>
+                      </select>
+                    </div>
                     <div className="flex-1 min-h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={dailyEarningsChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -1419,7 +1449,7 @@ export default function AdminPage() {
                       <div key={idx} className="p-6 border border-neutral-100 rounded-[2rem] flex flex-col items-center gap-4 relative overflow-hidden hover:shadow-md transition-shadow">
                         <div className="flex flex-col items-center gap-3">
                           {b.avatar ? (
-                            <img src={b.avatar} alt={b.name} className="w-16 h-16 rounded-2xl object-cover" />
+                            <img src={b.avatar} alt={b.name} className="w-16 h-16 rounded-2xl object-cover" referrerPolicy="no-referrer" />
                           ) : (
                             <div className="w-16 h-16 bg-neutral-900 rounded-2xl flex items-center justify-center text-white text-xl font-bold theme-bg">
                               {b.name.charAt(0).toUpperCase()}
@@ -1487,6 +1517,7 @@ export default function AdminPage() {
                       {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> Salvar</>}
                     </button>
                     <button
+                      type="button"
                       onClick={() => {
                         const newService: Service = {
                           id: Math.random().toString(36).substr(2, 9),
@@ -1618,6 +1649,7 @@ export default function AdminPage() {
                       {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> Salvar</>}
                     </button>
                     <button
+                      type="button"
                       onClick={() => {
                         const newBarber: Barber = {
                           id: Math.random().toString(36).substr(2, 9),
@@ -1640,7 +1672,7 @@ export default function AdminPage() {
                       <div className="relative group shrink-0">
                         <div className={`w-20 h-20 rounded-2xl overflow-hidden border border-neutral-100 flex items-center justify-center bg-neutral-50 ${barber.active === false ? 'grayscale opacity-60' : ''}`}>
                           {barber.avatar ? (
-                            <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" />
+                            <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           ) : (
                             <User className="w-8 h-8 text-neutral-300" />
                           )}
@@ -2126,7 +2158,7 @@ export default function AdminPage() {
 
                     <div className="relative h-32 w-32 rounded-4xl overflow-hidden border border-neutral-100 mb-4 bg-neutral-50 flex flex-col items-center justify-center mx-auto shadow-sm">
                       {shop.logo ? (
-                        <img src={shop.logo} alt="Logo" className="w-full h-full object-cover" />
+                        <img src={shop.logo} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       ) : (
                         <ImageIcon className="w-10 h-10 text-neutral-300 mb-1" />
                       )}
@@ -2169,7 +2201,7 @@ export default function AdminPage() {
 
                     <div className="relative h-48 w-full rounded-2xl overflow-hidden border border-neutral-100 mb-4 bg-neutral-50 flex flex-col items-center justify-center">
                       {shop.banner ? (
-                        <img src={shop.banner} alt="Banner" className="w-full h-full object-cover" />
+                        <img src={shop.banner} alt="Banner" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       ) : (
                         <ImageIcon className="w-10 h-10 text-neutral-300 mb-2" />
                       )}

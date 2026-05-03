@@ -76,7 +76,7 @@ function RegisterForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading || loadingSubmit) return;
+    if (loadingSubmit) return;
     setLoadingSubmit(true);
     setError('');
 
@@ -195,7 +195,8 @@ function RegisterForm() {
             shopId: newShop.id,
             slug: newShop.slug,
             price: selectedPlan.price,
-            name: selectedPlan.name
+            name: selectedPlan.name,
+            email: formData.email
           })
         });
         

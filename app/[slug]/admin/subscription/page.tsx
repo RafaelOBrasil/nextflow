@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useBarberData } from '@/hooks/use-barber-data';
 import { usePlans } from '@/hooks/use-plans';
-import { Check, ArrowLeft, Crown, Zap, ShieldCheck, Star, Info, AlertCircle, X, Plus } from 'lucide-react';
+import { Check, ArrowLeft, Crown, Zap, ShieldCheck, Star, Info, AlertCircle, X, Plus, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -81,6 +81,7 @@ export default function SubscriptionPage() {
           slug: shop.slug,
           price,
           name,
+          email: shop.adminEmail,
         }),
       });
 
@@ -223,8 +224,10 @@ export default function SubscriptionPage() {
               const previousPlan = i > 0 ? filteredPlans[i - 1] : null;
               const specificFeatures = allFeatures.filter(f => plan.features.includes(f.key));
               const isCurrentPlan = shop.planId === plan.id;
+              const isActuallyActive = shop.status === 'active';
               const isUpgrade = currentPlan ? plan.price > currentPlan.price : plan.price > 0;
-              const isDisabled = isCurrentPlan || (currentPlan && currentPlan.price > 0 && plan.price === 0);
+              const canPayForCurrent = isCurrentPlan && !isActuallyActive && plan.price > 0;
+              const isDisabled = (isCurrentPlan && isActuallyActive) || (currentPlan && currentPlan.price > 0 && plan.price === 0);
 
               return (
                 <motion.div
@@ -241,10 +244,17 @@ export default function SubscriptionPage() {
                         : 'border-neutral-100 hover:border-neutral-900/20 shadow-xl'
                   }`}
                 >
-                  {isCurrentPlan && (
+                  {(isCurrentPlan && isActuallyActive) && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-neutral-900 text-white px-6 py-1.5 rounded-full text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-lg">
                       <ShieldCheck className="w-4 h-4" />
                       Plano Ativo
+                    </div>
+                  )}
+
+                  {(isCurrentPlan && !isActuallyActive) && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-500 text-white px-6 py-1.5 rounded-full text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-lg">
+                      <AlertCircle className="w-4 h-4" />
+                      Pendente
                     </div>
                   )}
                   
@@ -313,21 +323,27 @@ export default function SubscriptionPage() {
                     onClick={() => handleSubscribe(plan.id, plan.price, plan.name)}
                     disabled={isDisabled || loading}
                     className={`w-full py-5 rounded-[1.5rem] font-black transition-all flex items-center justify-center gap-3 text-lg active:scale-95 ${
-                      isCurrentPlan
+                      isCurrentPlan && isActuallyActive
                         ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
-                        : isDisabled
-                          ? 'bg-neutral-50 text-neutral-300 cursor-not-allowed border border-neutral-100'
-                          : isUpgrade
-                            ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-xl shadow-amber-500/30 hover:shadow-amber-500/40'
-                            : 'bg-neutral-900 text-white hover:bg-neutral-800 shadow-xl shadow-neutral-900/20'
+                        : canPayForCurrent
+                          ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-xl shadow-amber-500/30'
+                          : isDisabled
+                            ? 'bg-neutral-50 text-neutral-300 cursor-not-allowed border border-neutral-100'
+                            : isUpgrade
+                              ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-xl shadow-amber-500/30 hover:shadow-amber-500/40'
+                              : 'bg-neutral-900 text-white hover:bg-neutral-800 shadow-xl shadow-neutral-900/20'
                     }`}
                   >
                     {loading ? (
                       <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
                         <Zap className="w-5 h-5" />
                       </motion.div>
-                    ) : isCurrentPlan ? (
+                    ) : isCurrentPlan && isActuallyActive ? (
                       'Plano Atual'
+                    ) : canPayForCurrent ? (
+                      <>
+                        <CreditCard className="w-5 h-5" /> Pagar Agora
+                      </>
                     ) : isDisabled ? (
                       'Indisponível'
                     ) : isUpgrade ? (

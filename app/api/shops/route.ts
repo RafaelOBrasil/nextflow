@@ -107,47 +107,47 @@ export async function POST(request: Request) {
       services, barbers
     } = body;
 
-    console.log('Checking if slug exists:', slug);
-    // Check if slug exists
+    console.log('Checking user/shop existence');
+    
+    // 1. Check if email exists
+    const existingUser = await prisma.user.findUnique({ 
+      where: { email: adminEmail },
+      include: { shop: true }
+    });
+
+    if (existingUser) {
+      // Se a loja existe mas está pendente de pagamento, e o admin é o mesmo, permite "retomar"
+      if (existingUser.shop && existingUser.shop.status === 'pending_payment') {
+        const shop = existingUser.shop;
+        console.log('Resuming registration for existing user via email check');
+        // Atualiza a senha
+        const hashedPassword = await bcrypt.hash(adminPassword, 10);
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: { password: hashedPassword }
+        });
+        
+        // Retorna a loja existente para prosseguir no frontend
+        return NextResponse.json({
+          ...shop,
+          openingHours: shop.openingHours ? JSON.parse(shop.openingHours) : undefined
+        });
+      }
+      
+      return NextResponse.json({ error: 'Este e-mail já está em uso por outro administrador.' }, { status: 400 });
+    }
+
+    // 2. Check if slug exists
     const existingShop = await prisma.barberShop.findUnique({ 
-      where: { slug },
-      include: { users: { where: { role: 'SHOP_ADMIN' } } }
+      where: { slug }
     });
 
     if (existingShop) {
-      // Se a loja existe mas está pendente de pagamento, e o admin é o mesmo, permite "retomar"
-      if (existingShop.status === 'pending_payment') {
-        const existingAdmin = existingShop.users[0];
-        if (existingAdmin && existingAdmin.email === adminEmail) {
-          console.log('Resuming registration for pending_payment shop');
-          // Atualiza a senha e dados se necessário para garantir que o usuário tenha acesso ao novo checkout
-          const hashedPassword = await bcrypt.hash(adminPassword, 10);
-          
-          await prisma.user.update({
-            where: { id: existingAdmin.id },
-            data: { password: hashedPassword }
-          });
-          
-          // Retorna a loja existente para prosseguir no frontend
-          return NextResponse.json({
-            ...existingShop,
-            openingHours: existingShop.openingHours ? JSON.parse(existingShop.openingHours) : undefined
-          });
-        }
-      }
-      
       console.log('Slug already exists:', slug);
       return NextResponse.json({ error: 'Este link (slug) já está em uso.' }, { status: 400 });
     }
 
-    // Check if email exists
-    const existingUser = await prisma.user.findUnique({ where: { email: adminEmail } });
-    if (existingUser) {
-      return NextResponse.json({ error: 'Este e-mail já está em uso por outro administrador.' }, { status: 400 });
-    }
-
     console.log('Hashing password');
-    // Hash password
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
     let finalPlanId = planId;

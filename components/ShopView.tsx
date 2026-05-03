@@ -358,6 +358,7 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
           src={shop.banner || 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=2074&auto=format&fit=crop'} 
           alt={shop.name}
           className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-transparent" />
       </div>
@@ -369,7 +370,7 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
             <div>
               {shop.logo && (
                 <div className="w-20 h-20 bg-white rounded-3xl p-1 shadow-lg border border-neutral-100 mb-6 overflow-hidden -mt-16 relative z-20">
-                  <img src={shop.logo} alt={`${shop.name} Logo`} className="w-full h-full object-cover rounded-2xl" />
+                  <img src={shop.logo} alt={`${shop.name} Logo`} className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" />
                 </div>
               )}
               <h1 className="text-4xl font-bold tracking-tight mb-2">{shop.name}</h1>
@@ -638,7 +639,7 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
                     className="p-4 md:p-5 rounded-2xl border border-neutral-100 hover:border-neutral-900 theme-border hover:bg-neutral-50 transition-all text-center group"
                   >
                     <div className="w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden mx-auto mb-2 md:mb-3 border-2 border-transparent group-hover:border-neutral-900 theme-border transition-all">
-                      <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" />
+                      <img src={barber.avatar} alt={barber.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     </div>
                     <h4 className="font-bold text-sm md:text-base">{barber.name}</h4>
                     <p className="text-[10px] md:text-xs text-neutral-400">{barber.role}</p>
@@ -649,7 +650,7 @@ export default function ShopView({ shop: initialShop }: ShopViewProps) {
             {step > 2 && selectedBarber && (
               <div className="flex items-center gap-3 px-2">
                 <div className="w-8 h-8 rounded-full overflow-hidden">
-                  <img src={selectedBarber.avatar} alt={selectedBarber.name} className="w-full h-full object-cover" />
+                  <img src={selectedBarber.avatar} alt={selectedBarber.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 </div>
                 <span className="font-medium text-neutral-600">{selectedBarber.name}</span>
               </div>

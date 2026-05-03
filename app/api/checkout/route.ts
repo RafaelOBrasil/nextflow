@@ -9,7 +9,7 @@ const client = new MercadoPagoConfig({
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { planId, shopId, slug, price, name } = body;
+    const { planId, shopId, slug, price, name, email } = body;
 
     if (!process.env.MP_ACCESS_TOKEN) {
       return NextResponse.json({ error: 'Mercado Pago token not configured' }, { status: 500 });
@@ -23,24 +23,26 @@ export async function POST(req: Request) {
     const preference = new Preference(client);
 
     const preferenceBody = {
-      items: [
-        {
-          id: planId,
-          title: name,
-          quantity: 1,
-          unit_price: price,
-          currency_id: 'BRL',
-        }
-      ],
-      back_urls: {
-        success: `${baseUrl}/${slug}/admin/subscription/success?planId=${planId}`,
-        failure: `${baseUrl}/${slug}/admin/subscription/failure`,
-        pending: `${baseUrl}/${slug}/admin/subscription/pending`,
-      },
-      auto_return: 'approved' as const,
-      external_reference: `${shopId}|${planId}`,
-      notification_url: `${baseUrl}/api/subscription/callback`,
-    };
+  items: [
+    {
+      id: planId,
+      title: name,
+      quantity: 1,
+      unit_price: Number(price), // 🔥 FIX
+      currency_id: 'BRL',
+    }
+  ],
+  payer: {
+    email: email || "atendimento@barber.com", // Usuário solicitou usar email do cliente
+  },
+  back_urls: {
+    success: `${baseUrl}/${slug}/admin/subscription/success?planId=${planId}`,
+    failure: `${baseUrl}/${slug}/admin/subscription/failure`,
+    pending: `${baseUrl}/${slug}/admin/subscription/pending`,
+  },
+  auto_return: 'approved',
+  external_reference: `${shopId}|${planId}`, 
+};
 
     console.log('Preference body:', JSON.stringify(preferenceBody, null, 2));
 

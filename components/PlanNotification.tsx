@@ -12,10 +12,12 @@ interface PlanStatus {
   daysRemaining: number;
 }
 
-export default function PlanNotification({ shopId }: { shopId: string }) {
+export default function PlanNotification({ shopId, shopSlug }: { shopId: string, shopSlug?: string }) {
   const [status, setStatus] = useState<PlanStatus | null>(null);
   const [showPopup, setShowPopup] = useState(false);
   const [popupType, setPopupType] = useState<'expired' | 'limit' | null>(null);
+
+  const billingPath = shopSlug ? `/${shopSlug}/admin/subscription` : '#';
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -78,7 +80,7 @@ export default function PlanNotification({ shopId }: { shopId: string }) {
             <div className="flex flex-col gap-3">
               {popupType === 'expired' ? (
                 <button 
-                  onClick={() => window.location.href = '/billing'}
+                  onClick={() => window.location.href = billingPath}
                   className="w-full py-3 px-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
                 >
                   <RefreshCw size={18} />
@@ -86,7 +88,7 @@ export default function PlanNotification({ shopId }: { shopId: string }) {
                 </button>
               ) : (
                 <button 
-                  onClick={() => window.location.href = '/billing'}
+                  onClick={() => window.location.href = billingPath}
                   className="w-full py-3 px-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
                 >
                   <CreditCard size={18} />
