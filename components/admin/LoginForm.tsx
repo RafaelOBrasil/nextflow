@@ -47,6 +47,7 @@ export default function LoginForm({ onLogin, error, shop }: { onLogin: (e: React
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <Input
                 type="email"
+                autoComplete="email"
                 placeholder="admin@barber.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

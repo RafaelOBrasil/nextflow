@@ -71,6 +71,7 @@ export default function LoginPage() {
             <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">E-mail</label>
             <input 
               type="email" 
+              autoComplete="email"
               autoFocus
               placeholder="admin@exemplo.com"
               value={email}

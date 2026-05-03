@@ -325,6 +325,7 @@ function RegisterForm() {
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                   <input
                     type="email"
+                    autoComplete="email"
                     placeholder="admin@exemplo.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}

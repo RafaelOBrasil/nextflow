@@ -120,6 +120,7 @@ export default function SaaSAdminLayout({ children }: { children: React.ReactNod
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
                 <input
                   type="email"
+                  autoComplete="email"
                   placeholder="admin@nextflowbarber.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
