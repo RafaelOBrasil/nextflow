@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import type { BarberShop, Appointment } from '@/lib/types';
-import { getSocket } from '@/lib/socket';
 
 interface BarberContextType {
   shops: BarberShop[];
@@ -40,14 +39,6 @@ export function BarberProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         setShops(data);
-        
-        // Join socket rooms for all fetched shops
-        const socket = getSocket();
-        data.forEach((shop: BarberShop) => {
-          if (shop.id) {
-            socket.emit('join-shop', shop.id);
-          }
-        });
       }
     } catch (error) {
       console.error('Failed to fetch shops:', error);
@@ -63,70 +54,6 @@ export function BarberProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     shopsRef.current = shops;
   }, [shops]);
-
-  useEffect(() => {
-    const socket = getSocket();
-    socket.connect();
-
-    const onConnect = () => {
-      console.log('Socket connected, rejoining rooms...');
-      shopsRef.current.forEach(shop => {
-        if (shop.id) {
-          socket.emit('join-shop', shop.id);
-        }
-      });
-    };
-
-    socket.on('connect', onConnect);
-
-    const handleAppointmentCreated = (newAppointment: Appointment) => {
-      console.log('Socket event received: appointment-created', newAppointment);
-      setShops(prev => prev.map(s => {
-        if (s.id === newAppointment.shopId) {
-          if (s.appointments?.some(a => a.id === newAppointment.id)) return s;
-          return { ...s, appointments: [...(s.appointments || []), newAppointment] };
-        }
-        return s;
-      }));
-    };
-
-    const handleAppointmentUpdated = (updatedAppointment: Appointment) => {
-      console.log('Socket event received: appointment-updated', updatedAppointment);
-      setShops(prev => prev.map(s => {
-        if (s.id === updatedAppointment.shopId) {
-          return {
-            ...s,
-            appointments: s.appointments?.map(a => a.id === updatedAppointment.id ? updatedAppointment : a)
-          };
-        }
-        return s;
-      }));
-    };
-
-    const handleAppointmentDeleted = (deletedAppointment: Appointment) => {
-      console.log('Socket event received: appointment-deleted', deletedAppointment);
-      setShops(prev => prev.map(s => {
-        if (s.id === deletedAppointment.shopId) {
-          return {
-            ...s,
-            appointments: s.appointments?.filter(a => a.id !== deletedAppointment.id)
-          };
-        }
-        return s;
-      }));
-    };
-
-    socket.on('appointment-created', handleAppointmentCreated);
-    socket.on('appointment-updated', handleAppointmentUpdated);
-    socket.on('appointment-deleted', handleAppointmentDeleted);
-
-    return () => {
-      socket.off('connect', onConnect);
-      socket.off('appointment-created', handleAppointmentCreated);
-      socket.off('appointment-updated', handleAppointmentUpdated);
-      socket.off('appointment-deleted', handleAppointmentDeleted);
-    };
-  }, []);
 
   const fetchShopBySlug = useCallback(async (slug: string, silent = false) => {
     try {
@@ -152,10 +79,6 @@ export function BarberProvider({ children }: { children: ReactNode }) {
           }
           return [...prev, data];
         });
-        
-        if (data.id) {
-          getSocket().emit('join-shop', data.id);
-        }
         
         return data;
       }
@@ -231,8 +154,6 @@ export function BarberProvider({ children }: { children: ReactNode }) {
           return s;
         }));
         
-        getSocket().emit('new-appointment', newAppointment);
-        
         return newAppointment;
       } else {
         const err = await res.json();
@@ -262,8 +183,6 @@ export function BarberProvider({ children }: { children: ReactNode }) {
           }
           return s;
         }));
-        
-        getSocket().emit('update-appointment', updatedAppointment);
       }
     } catch (error) {
       console.error('Failed to update appointment status:', error);
