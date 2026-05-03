@@ -18,7 +18,7 @@ function RegisterForm() {
   useEffect(() => {
     fetchShops();
   }, [fetchShops]);
-  
+
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
@@ -40,7 +40,7 @@ function RegisterForm() {
         .trim()
         .replace(/\s+/g, '-') // Espaços para hífens
         .replace(/-+/g, '-'); // Evita múltiplos hífens
-      
+
       setFormData(prev => ({ ...prev, slug: generatedSlug }));
     }
   }, [formData.name]);
@@ -81,7 +81,7 @@ function RegisterForm() {
     setError('');
 
     const slug = formData.slug.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-    
+
     if (!slug) {
       setError('Por favor, insira um link válido.');
       setLoadingSubmit(false);
@@ -190,8 +190,8 @@ function RegisterForm() {
         const res = await fetch('/api/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            planId: selectedPlan.id, 
+          body: JSON.stringify({
+            planId: selectedPlan.id,
             shopId: newShop.id,
             slug: newShop.slug,
             price: selectedPlan.price,
@@ -199,7 +199,7 @@ function RegisterForm() {
             email: formData.email
           })
         });
-        
+
         if (res.ok) {
           const { init_point } = await res.json();
           window.location.href = init_point;
@@ -218,7 +218,7 @@ function RegisterForm() {
 
   return (
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4 font-sans">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="max-w-2xl w-full"
@@ -244,13 +244,13 @@ function RegisterForm() {
           {step === 1 && (
             <div className="space-y-6">
               <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-widest">Informações da Loja</h3>
-              
+
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Nome da Barbearia</label>
                 <div className="relative">
                   <Store className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Ex: Barber Shop"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -264,8 +264,8 @@ function RegisterForm() {
                 <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Link Personalizado (Automático)</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold">/</span>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="link-gerado-automaticamente"
                     value={formData.slug}
                     readOnly
@@ -279,8 +279,8 @@ function RegisterForm() {
                 <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Telefone</label>
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="(00) 00000-0000"
                     value={formData.phone}
                     onChange={handlePhoneChange}
@@ -294,8 +294,8 @@ function RegisterForm() {
                 <label className="text-xs font-bold text-neutral-500 uppercase ml-1">CPF ou CNPJ</label>
                 <div className="relative">
                   <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="000.000.000-00"
                     value={formData.document}
                     onChange={handleDocumentChange}
@@ -305,7 +305,7 @@ function RegisterForm() {
                 </div>
               </div>
 
-              <button 
+              <button
                 type="button"
                 onClick={() => setStep(2)}
                 className="w-full bg-neutral-900 text-white py-4 rounded-xl font-bold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2"
@@ -323,8 +323,8 @@ function RegisterForm() {
                 <label className="text-xs font-bold text-neutral-500 uppercase ml-1">E-mail do Administrador</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     placeholder="admin@exemplo.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -338,8 +338,9 @@ function RegisterForm() {
                 <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Senha</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                  <input 
-                    type="password" 
+                  <input
+                    type="password"
+                    autoComplete="new-password"
                     placeholder="••••••••"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -353,8 +354,8 @@ function RegisterForm() {
                 <label className="text-xs font-bold text-neutral-500 uppercase ml-1">Endereço</label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Rua, Número - Bairro"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -364,14 +365,14 @@ function RegisterForm() {
               </div>
 
               <div className="flex gap-4">
-                <button 
+                <button
                   type="button"
                   onClick={() => setStep(1)}
                   className="w-full bg-neutral-100 text-neutral-900 py-4 rounded-xl font-bold hover:bg-neutral-200 transition-all"
                 >
                   Voltar
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={() => setStep(3)}
                   className="w-full bg-neutral-900 text-white py-4 rounded-xl font-bold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2"
@@ -385,7 +386,7 @@ function RegisterForm() {
           {step === 3 && (
             <div className="space-y-6">
               <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-widest">Escolha seu Plano</h3>
-              
+
               <div className="grid grid-cols-1 gap-2">
                 {plans.map(plan => (
                   <button
@@ -403,14 +404,14 @@ function RegisterForm() {
               </div>
 
               <div className="flex gap-4">
-                <button 
+                <button
                   type="button"
                   onClick={() => setStep(2)}
                   className="w-full bg-neutral-100 text-neutral-900 py-4 rounded-xl font-bold hover:bg-neutral-200 transition-all"
                 >
                   Voltar
                 </button>
-                <button 
+                <button
                   type="submit"
                   disabled={loadingSubmit}
                   className="w-full bg-neutral-900 text-white py-4 rounded-xl font-bold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2"
@@ -421,7 +422,7 @@ function RegisterForm() {
             </div>
           )}
         </form>
-        
+
         <p className="text-center mt-8 text-neutral-400 text-sm">
           Já tem uma conta? <button onClick={() => router.push('/')} className="text-neutral-900 font-bold hover:underline">Entre aqui</button>
         </p>

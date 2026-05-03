@@ -71,6 +71,7 @@ function ResetPasswordForm() {
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
             <input 
               type="password" 
+              autoComplete="new-password"
               placeholder="••••••••"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}

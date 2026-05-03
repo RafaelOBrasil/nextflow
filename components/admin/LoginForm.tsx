@@ -14,7 +14,8 @@ export default function LoginForm({ onLogin, error, shop }: { onLogin: (e: React
   return (
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4 font-sans">
       {shop.primaryColor && (
-        <style dangerouslySetInnerHTML={{ __html: `
+        <style dangerouslySetInnerHTML={{
+          __html: `
           .theme-bg { background-color: ${shop.primaryColor} !important; color: #fff !important; border-color: ${shop.primaryColor} !important; }
           .theme-bg-hover:hover { opacity: 0.9 !important; }
           .theme-text { color: ${shop.primaryColor} !important; }
@@ -60,6 +61,7 @@ export default function LoginForm({ onLogin, error, shop }: { onLogin: (e: React
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <Input
                 type="password"
+                autoComplete="current-password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

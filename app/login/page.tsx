@@ -82,7 +82,8 @@ export default function LoginPage() {
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Senha</label>
             <input 
-              type="password" 
+              type="password"
+              autoComplete="current-password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

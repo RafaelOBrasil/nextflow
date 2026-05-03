@@ -141,7 +141,7 @@ export default function AdminPage() {
 
       setShopLoading(true);
       const found = await fetchShopBySlug(slug);
-      
+
       if (found && found.status === 'expired') {
         setShowExpiredModal(true);
       }
@@ -202,13 +202,13 @@ export default function AdminPage() {
 
 
   const getToday = () => {
-  const d = new Date()
-  return [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, '0'),
-    String(d.getDate()).padStart(2, '0'),
-  ].join('-')
-};
+    const d = new Date()
+    return [
+      d.getFullYear(),
+      String(d.getMonth() + 1).padStart(2, '0'),
+      String(d.getDate()).padStart(2, '0'),
+    ].join('-')
+  };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
@@ -250,7 +250,7 @@ export default function AdminPage() {
       }
       if (!shop) return;
       setIsSaving(true);
-      
+
       try {
         const formData = new FormData();
         formData.append('file', file);
@@ -295,7 +295,7 @@ export default function AdminPage() {
       }
       if (!shop) return;
       setIsSaving(true);
-      
+
       try {
         const formData = new FormData();
         formData.append('file', file);
@@ -317,7 +317,7 @@ export default function AdminPage() {
         if (!res.ok) throw new Error('Falha no upload');
 
         const data = await res.json();
-        const newBarbers = (shop.barbers || []).map(b => 
+        const newBarbers = (shop.barbers || []).map(b =>
           b.id === barberId ? { ...b, avatar: data.url } : b
         );
         setShop({ ...shop, barbers: newBarbers });
@@ -477,7 +477,7 @@ export default function AdminPage() {
     );
 
     const isBlackoutDate = (shop.blackoutPeriods || []).some(bp => {
-        return dateStr >= bp.start && dateStr <= bp.end;
+      return dateStr >= bp.start && dateStr <= bp.end;
     });
 
     if (isBlackoutDate) return [];
@@ -563,17 +563,17 @@ export default function AdminPage() {
 
   if (!isLoggedIn) {
     return (
-      <LoginForm 
-        shop={shop} 
-        error={loginError} 
-        onLogin={handleLogin} 
+      <LoginForm
+        shop={shop}
+        error={loginError}
+        onLogin={handleLogin}
       />
     );
   }
 
   // Computations for Finance and Dashboard
   const allApts = shop.appointments || [];
-  
+
   const getAptPrice = (apt: Appointment) => {
     if (apt.service?.price !== undefined) return apt.service.price;
     const srv = shop.services?.find(s => s.id === apt.serviceId);
@@ -583,7 +583,7 @@ export default function AdminPage() {
   const getAppointmentsInRange = (apts: Appointment[], type: 'today' | 'week' | 'month' | 'custom', start?: string, end?: string) => {
     if (!now) return [];
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
+
     return apts.filter(a => {
       if (!a.date) return false;
       const [y, m, d] = a.date.split('-').map(Number);
@@ -615,41 +615,41 @@ export default function AdminPage() {
   };
 
   const filteredByDateApts = getAppointmentsInRange(allApts, dateFilterType, customStartDate, customEndDate);
-  
+
   // Ganhos Confirmados (Concluídos)
   const validApts = filteredByDateApts.filter(a => a.status === 'completed');
   const earningsCompleted = validApts.reduce((acc, curr) => acc + getAptPrice(curr), 0);
-  
+
   let previousMonthEarnings = 0;
-  if(now && dateFilterType === 'month') {
-      const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-      const lastMonthApts = allApts.filter(a => {
-           if (!a.date || a.status !== 'completed') return false;
-           const [y, m, d] = a.date.split('-').map(Number);
-           const aptDate = new Date(y, m - 1, d);
-           return aptDate >= firstDayOfLastMonth && aptDate <= lastDayOfLastMonth;
-      });
-      previousMonthEarnings = lastMonthApts.reduce((acc, curr) => acc + getAptPrice(curr), 0);
+  if (now && dateFilterType === 'month') {
+    const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    const lastMonthApts = allApts.filter(a => {
+      if (!a.date || a.status !== 'completed') return false;
+      const [y, m, d] = a.date.split('-').map(Number);
+      const aptDate = new Date(y, m - 1, d);
+      return aptDate >= firstDayOfLastMonth && aptDate <= lastDayOfLastMonth;
+    });
+    previousMonthEarnings = lastMonthApts.reduce((acc, curr) => acc + getAptPrice(curr), 0);
   }
-  
+
   const growth = previousMonthEarnings === 0 ? 0 : ((earningsCompleted - previousMonthEarnings) / previousMonthEarnings) * 100;
-  
+
   // Ganhos Estimados (Agendados / Pendentes)
   const validEstimates = filteredByDateApts.filter(a => a.status === 'confirmed' || a.status === 'pending');
   const earningsEstimated = validEstimates.reduce((acc, curr) => acc + getAptPrice(curr), 0);
-  
+
   let previousMonthEstimated = 0;
-  if(now && dateFilterType === 'month') {
-      const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-      const lastMonthApts = allApts.filter(a => {
-           if (!a.date || (a.status !== 'confirmed' && a.status !== 'pending')) return false;
-           const [y, m, d] = a.date.split('-').map(Number);
-           const aptDate = new Date(y, m - 1, d);
-           return aptDate >= firstDayOfLastMonth && aptDate <= lastDayOfLastMonth;
-      });
-      previousMonthEstimated = lastMonthApts.reduce((acc, curr) => acc + getAptPrice(curr), 0);
+  if (now && dateFilterType === 'month') {
+    const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    const lastMonthApts = allApts.filter(a => {
+      if (!a.date || (a.status !== 'confirmed' && a.status !== 'pending')) return false;
+      const [y, m, d] = a.date.split('-').map(Number);
+      const aptDate = new Date(y, m - 1, d);
+      return aptDate >= firstDayOfLastMonth && aptDate <= lastDayOfLastMonth;
+    });
+    previousMonthEstimated = lastMonthApts.reduce((acc, curr) => acc + getAptPrice(curr), 0);
   }
   const growthEstimated = previousMonthEstimated === 0 ? 0 : ((earningsEstimated - previousMonthEstimated) / previousMonthEstimated) * 100;
 
@@ -658,16 +658,16 @@ export default function AdminPage() {
   const earningsCancelled = validCancelled.reduce((acc, curr) => acc + getAptPrice(curr), 0);
 
   let previousMonthCancelled = 0;
-  if(now && dateFilterType === 'month') {
-      const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-      const lastMonthApts = allApts.filter(a => {
-           if (!a.date || a.status !== 'cancelled') return false;
-           const [y, m, d] = a.date.split('-').map(Number);
-           const aptDate = new Date(y, m - 1, d);
-           return aptDate >= firstDayOfLastMonth && aptDate <= lastDayOfLastMonth;
-      });
-      previousMonthCancelled = lastMonthApts.reduce((acc, curr) => acc + getAptPrice(curr), 0);
+  if (now && dateFilterType === 'month') {
+    const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    const lastMonthApts = allApts.filter(a => {
+      if (!a.date || a.status !== 'cancelled') return false;
+      const [y, m, d] = a.date.split('-').map(Number);
+      const aptDate = new Date(y, m - 1, d);
+      return aptDate >= firstDayOfLastMonth && aptDate <= lastDayOfLastMonth;
+    });
+    previousMonthCancelled = lastMonthApts.reduce((acc, curr) => acc + getAptPrice(curr), 0);
   }
   const growthCancelled = previousMonthCancelled === 0 ? 0 : ((earningsCancelled - previousMonthCancelled) / previousMonthCancelled) * 100;
 
@@ -689,7 +689,7 @@ export default function AdminPage() {
   const avgDuration = validApts.length > 0 ? Math.round(totalDuration / validApts.length) : 0;
 
   // Serviços mais realizados (Baseado no filtro de data)
-  const serviceCountMap: Record<string, {name: string, count: number, total: number}> = {};
+  const serviceCountMap: Record<string, { name: string, count: number, total: number }> = {};
   revenueApts.forEach(a => {
     const serviceId = a.serviceId;
     const service = a.service || shop.services?.find(s => s.id === serviceId);
@@ -701,14 +701,14 @@ export default function AdminPage() {
       serviceCountMap[serviceId].total += (service.price || 0);
     }
   });
-  const topServices = Object.values(serviceCountMap).sort((a,b) => b.count - a.count);
+  const topServices = Object.values(serviceCountMap).sort((a, b) => b.count - a.count);
 
   // Produtividade por Barbeiro (Baseado no filtro de data)
   // Inclui Valor Gerado (concluidos), Valor Potencial (pendentes+confirmados) e Valor Cancelado
   const barberMetricsMap: Record<string, {
-    name: string, 
+    name: string,
     avatar: string | null | undefined,
-    completedCount: number, 
+    completedCount: number,
     completedTotal: number,
     potentialCount: number,
     potentialTotal: number,
@@ -721,13 +721,13 @@ export default function AdminPage() {
     const barber = a.barber || shop.barbers?.find(b => b.id === barberId);
     const service = a.service || shop.services?.find(s => s.id === a.serviceId);
     const price = getAptPrice(a);
-    
+
     if (barber) {
       if (!barberMetricsMap[barberId]) {
-        barberMetricsMap[barberId] = { 
-          name: barber.name, 
+        barberMetricsMap[barberId] = {
+          name: barber.name,
           avatar: barber.avatar,
-          completedCount: 0, 
+          completedCount: 0,
           completedTotal: 0,
           potentialCount: 0,
           potentialTotal: 0,
@@ -735,7 +735,7 @@ export default function AdminPage() {
           cancelledTotal: 0
         };
       }
-      
+
       if (a.status === 'completed') {
         barberMetricsMap[barberId].completedCount += 1;
         barberMetricsMap[barberId].completedTotal += price;
@@ -748,10 +748,10 @@ export default function AdminPage() {
       }
     }
   });
-  const barberMetrics = Object.values(barberMetricsMap).sort((a,b) => b.completedTotal - a.completedTotal);
+  const barberMetrics = Object.values(barberMetricsMap).sort((a, b) => b.completedTotal - a.completedTotal);
 
   // Dados do grafico de receita
-  const chartDaysList = Array.from({length: revenueChartPeriod}).map((_, i) => {
+  const chartDaysList = Array.from({ length: revenueChartPeriod }).map((_, i) => {
     if (!now) return '';
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     d.setDate(d.getDate() - ((revenueChartPeriod - 1) - i));
@@ -763,7 +763,7 @@ export default function AdminPage() {
 
   const dailyEarningsChart = chartDaysList.map(date => {
     return {
-      date: date.substring(8,10) + '/' + date.substring(5,7),
+      date: date.substring(8, 10) + '/' + date.substring(5, 7),
       Ganhos: allApts.filter(a => a.date === date && (a.status === 'completed' || a.status === 'confirmed' || a.status === 'pending')).reduce((acc, curr) => acc + getAptPrice(curr), 0)
     }
   });
@@ -772,7 +772,8 @@ export default function AdminPage() {
     <div className="min-h-screen bg-neutral-50 flex font-sans">
       <PlanNotification shopId={shop.id} shopSlug={shop.slug} />
       {shop.primaryColor && (
-        <style dangerouslySetInnerHTML={{ __html: `
+        <style dangerouslySetInnerHTML={{
+          __html: `
           .theme-bg { background-color: ${shop.primaryColor} !important; color: #fff !important; border-color: ${shop.primaryColor} !important; }
           .theme-bg-hover:hover { opacity: 0.9 !important; }
           .theme-text { color: ${shop.primaryColor} !important; }
@@ -966,7 +967,7 @@ export default function AdminPage() {
                       <p className="text-xs text-neutral-400 font-medium">Os cards financeiros abaixo respeitam este filtro</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <select 
+                      <select
                         value={dateFilterType}
                         onChange={(e) => setDateFilterType(e.target.value as any)}
                         className="px-4 py-2 rounded-xl bg-neutral-50 border border-neutral-100 font-bold text-xs focus:outline-none focus:border-neutral-900 theme-border"
@@ -979,13 +980,13 @@ export default function AdminPage() {
 
                       {dateFilterType === 'custom' && (
                         <div className="flex items-center gap-2">
-                          <input 
+                          <input
                             type="date"
                             value={customStartDate}
                             onChange={(e) => setCustomStartDate(e.target.value)}
                             className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-100 font-bold text-[10px] focus:outline-none focus:border-neutral-900 theme-border"
                           />
-                          <input 
+                          <input
                             type="date"
                             value={customEndDate}
                             onChange={(e) => setCustomEndDate(e.target.value)}
@@ -1012,9 +1013,9 @@ export default function AdminPage() {
                     <p className="text-3xl font-bold text-emerald-600 relative z-10 flex items-center gap-2">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsCompleted)}
                       {dateFilterType === 'month' && growth !== 0 && (
-                          <span className={`text-sm ${growth > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                              {growth > 0 ? '+' : ''}{growth.toFixed(1)}%
-                          </span>
+                        <span className={`text-sm ${growth > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {growth > 0 ? '+' : ''}{growth.toFixed(1)}%
+                        </span>
                       )}
                     </p>
                   </div>
@@ -1031,9 +1032,9 @@ export default function AdminPage() {
                     <p className="text-3xl font-bold text-amber-600 relative z-10 flex items-center gap-2">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsEstimated)}
                       {dateFilterType === 'month' && growthEstimated !== 0 && (
-                          <span className={`text-sm ${growthEstimated > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                              {growthEstimated > 0 ? '+' : ''}{growthEstimated.toFixed(1)}%
-                          </span>
+                        <span className={`text-sm ${growthEstimated > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {growthEstimated > 0 ? '+' : ''}{growthEstimated.toFixed(1)}%
+                        </span>
                       )}
                     </p>
                   </div>
@@ -1050,9 +1051,9 @@ export default function AdminPage() {
                     <p className="text-3xl font-bold text-rose-600 relative z-10 flex items-center gap-2">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsCancelled)}
                       {dateFilterType === 'month' && growthCancelled !== 0 && (
-                          <span className={`text-sm ${growthCancelled > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                              {growthCancelled > 0 ? '+' : ''}{growthCancelled.toFixed(1)}%
-                          </span>
+                        <span className={`text-sm ${growthCancelled > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {growthCancelled > 0 ? '+' : ''}{growthCancelled.toFixed(1)}%
+                        </span>
                       )}
                     </p>
                   </div>
@@ -1095,7 +1096,7 @@ export default function AdminPage() {
                       if (dayAppointments.length === 0) {
                         return <p className="col-span-full text-center py-6 text-neutral-400 font-medium italic">Nenhum agendamento para esta data.</p>;
                       }
-                      
+
                       const agendaItems = montarAgendaAdmin(
                         dayAppointments,
                         shop?.services || [],
@@ -1131,7 +1132,7 @@ export default function AdminPage() {
                               <div className="flex flex-col mt-1">
                                 <span className={`text-xs ${item.status === 'pending' ? 'text-amber-700/70' : 'text-neutral-400'}`}>Serviço</span>
                                 <span className="font-medium text-xs opacity-90">
-                                {shop?.services?.find(s => s.id === item.original.serviceId)?.name || 'Serviço'}
+                                  {shop?.services?.find(s => s.id === item.original.serviceId)?.name || 'Serviço'}
                                 </span>
                               </div>
                             )}
@@ -1314,7 +1315,7 @@ export default function AdminPage() {
                       <p className="text-xs text-neutral-400 font-medium">As métricas abaixo respeitam este filtro</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <select 
+                      <select
                         value={dateFilterType}
                         onChange={(e) => setDateFilterType(e.target.value as any)}
                         className="px-4 py-2 rounded-xl bg-neutral-50 border border-neutral-100 font-bold text-xs focus:outline-none focus:border-neutral-900 theme-border"
@@ -1327,14 +1328,14 @@ export default function AdminPage() {
 
                       {dateFilterType === 'custom' && (
                         <div className="flex items-center gap-2">
-                          <input 
+                          <input
                             type="date"
                             value={customStartDate}
                             onChange={(e) => setCustomStartDate(e.target.value)}
                             className="px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-100 font-bold text-[10px] focus:outline-none focus:border-neutral-900 theme-border"
                           />
                           <span className="text-neutral-400 text-xs font-bold">até</span>
-                          <input 
+                          <input
                             type="date"
                             value={customEndDate}
                             onChange={(e) => setCustomEndDate(e.target.value)}
@@ -1397,9 +1398,9 @@ export default function AdminPage() {
                   <div className="bg-white rounded-4xl border border-neutral-200 shadow-sm p-6 flex flex-col">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="font-bold text-lg">Receita Diária</h3>
-                      <select 
-                        className="text-sm border border-neutral-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-neutral-900 bg-white" 
-                        value={revenueChartPeriod} 
+                      <select
+                        className="text-sm border border-neutral-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-neutral-900 bg-white"
+                        value={revenueChartPeriod}
                         onChange={(e) => setRevenueChartPeriod(Number(e.target.value) as 7 | 30)}
                       >
                         <option value={7}>7 dias</option>
@@ -1410,9 +1411,9 @@ export default function AdminPage() {
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={dailyEarningsChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
-                          <RechartsTooltip cursor={{fill: '#F3F4F6'}} contentStyle={{borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dy={10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                          <RechartsTooltip cursor={{ fill: '#F3F4F6' }} contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                           <Bar dataKey="Ganhos" fill={shop.primaryColor || "#171717"} radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
@@ -1457,7 +1458,7 @@ export default function AdminPage() {
                           )}
                           <span className="font-bold text-base truncate">{b.name}</span>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 gap-4 divide-y divide-neutral-50 w-full">
                           <div className="pt-0">
                             <div className="flex items-center justify-between mb-1">
@@ -1468,7 +1469,7 @@ export default function AdminPage() {
                               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(b.completedTotal)}
                             </p>
                           </div>
-                          
+
                           <div className="pt-4">
                             <div className="flex items-center justify-between mb-1">
                               <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter">Valor Potencial (Agendados)</p>
@@ -1862,141 +1863,139 @@ export default function AdminPage() {
                 <div className="flex bg-white p-2 rounded-2xl border border-neutral-100 shadow-sm gap-2 overflow-x-auto no-scrollbar">
                   <button
                     onClick={() => setActiveSettingsTab('general')}
-                    className={`flex-1 min-w-max py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
-                      activeSettingsTab === 'general'
+                    className={`flex-1 min-w-max py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${activeSettingsTab === 'general'
                         ? 'bg-neutral-900 theme-bg text-white shadow-md'
                         : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 theme-text'
-                    }`}
+                      }`}
                   >
                     Informações Gerais
                   </button>
                   <button
                     onClick={() => setActiveSettingsTab('hours')}
-                    className={`flex-1 min-w-max py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
-                      activeSettingsTab === 'hours'
+                    className={`flex-1 min-w-max py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${activeSettingsTab === 'hours'
                         ? 'bg-neutral-900 theme-bg text-white shadow-md'
                         : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 theme-text'
-                    }`}
+                      }`}
                   >
                     Horário de Funcionamento e Intervalos
                   </button>
                   <button
                     onClick={() => setActiveSettingsTab('admin')}
-                    className={`flex-1 min-w-max py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
-                      activeSettingsTab === 'admin'
+                    className={`flex-1 min-w-max py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${activeSettingsTab === 'admin'
                         ? 'bg-neutral-900 theme-bg text-white shadow-md'
                         : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 theme-text'
-                    }`}
+                      }`}
                   >
                     Logotipo e Capa
                   </button>
                 </div>
 
                 {activeSettingsTab === 'general' && (
-                <div className="bg-white p-4 md:p-8 rounded-4xl border border-neutral-200 shadow-sm space-y-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg md:text-xl font-bold">Informações Gerais</h3>
-                    <button
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-md shadow-emerald-900/10"
-                    >
-                      {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> <span className="hidden sm:inline">Salvar</span></>}
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Nome da Barbearia</label>
-                      <input
-                        type="text"
-                        value={shop.name}
-                        onChange={(e) => setShop({ ...shop, name: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold"
-                      />
+                  <div className="bg-white p-4 md:p-8 rounded-4xl border border-neutral-200 shadow-sm space-y-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg md:text-xl font-bold">Informações Gerais</h3>
+                      <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-md shadow-emerald-900/10"
+                      >
+                        {isSaving ? 'Salvando...' : <><Save className="w-4 h-4" /> <span className="hidden sm:inline">Salvar</span></>}
+                      </button>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Link da Página (slug)</label>
-                      <div className="flex items-center gap-2">
-                        <span className="text-neutral-400 text-sm font-medium">/</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Nome da Barbearia</label>
                         <input
                           type="text"
-                          value={shop.slug}
-                          onChange={(e) => setShop({ ...shop, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                          value={shop.name}
+                          onChange={(e) => setShop({ ...shop, name: e.target.value })}
                           className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold"
                         />
                       </div>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Descrição</label>
-                    <textarea
-                      value={shop.description}
-                      onChange={(e) => setShop({ ...shop, description: e.target.value })}
-                      rows={3}
-                      className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
-                    />
-                  </div>
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Endereço</label>
-                      <input
-                        type="text"
-                        value={shop.address}
-                        onChange={(e) => setShop({ ...shop, address: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Telefone</label>
-                      <input
-                        type="text"
-                        value={shop.phone}
-                        onChange={(e) => setShop({ ...shop, phone: maskPhone(e.target.value) })}
-                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-6 pt-6 border-t border-neutral-100">
-                    <h4 className="text-sm font-bold mb-4">Acesso Administrativo</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Senha do Painel</label>
-                        <div className="relative">
-                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                        <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Link da Página (slug)</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-neutral-400 text-sm font-medium">/</span>
                           <input
-                            type="password"
-                            value={shop.adminPassword || ''}
-                            onChange={(e) => setShop({ ...shop, adminPassword: e.target.value })}
-                            placeholder="••••••••"
-                            className="w-full pl-12 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
+                            type="text"
+                            value={shop.slug}
+                            onChange={(e) => setShop({ ...shop, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                            className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-bold"
                           />
                         </div>
-                        <p className="text-[10px] text-neutral-400 ml-1 italic">Preencha se desejar alterar a senha atual.</p>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="mt-6 pt-6 border-t border-neutral-100">
-                    <h4 className="text-sm font-bold mb-4">Personalização</h4>
-                    <div className="space-y-1.5 w-max">
-                      <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Cor Principal</label>
-                      <div className="flex items-center gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Descrição</label>
+                      <textarea
+                        value={shop.description}
+                        onChange={(e) => setShop({ ...shop, description: e.target.value })}
+                        rows={3}
+                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
+                      />
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Endereço</label>
                         <input
-                          type="color"
-                          value={shop.primaryColor || '#000000'}
-                          onChange={(e) => setShop({ ...shop, primaryColor: e.target.value })}
-                          className="w-12 h-12 rounded-lg cursor-pointer border-0 p-0"
+                          type="text"
+                          value={shop.address}
+                          onChange={(e) => setShop({ ...shop, address: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
                         />
-                        <span className="text-sm font-mono text-neutral-500 uppercase">{shop.primaryColor || '#000000'}</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Telefone</label>
+                        <input
+                          type="text"
+                          value={shop.phone}
+                          onChange={(e) => setShop({ ...shop, phone: maskPhone(e.target.value) })}
+                          className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-6 border-t border-neutral-100">
+                      <h4 className="text-sm font-bold mb-4">Acesso Administrativo</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Senha do Painel</label>
+                          <div className="relative">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                            <input
+                              type="password"
+                              autoComplete="current-password"
+                              value={shop.adminPassword || ''}
+                              onChange={(e) => setShop({ ...shop, adminPassword: e.target.value })}
+                              placeholder="••••••••"
+                              className="w-full pl-12 pr-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100 focus:outline-none focus:border-neutral-900 theme-border transition-all font-medium"
+                            />
+                          </div>
+                          <p className="text-[10px] text-neutral-400 ml-1 italic">Preencha se desejar alterar a senha atual.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-6 border-t border-neutral-100">
+                      <h4 className="text-sm font-bold mb-4">Personalização</h4>
+                      <div className="space-y-1.5 w-max">
+                        <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Cor Principal</label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={shop.primaryColor || '#000000'}
+                            onChange={(e) => setShop({ ...shop, primaryColor: e.target.value })}
+                            className="w-12 h-12 rounded-lg cursor-pointer border-0 p-0"
+                          />
+                          <span className="text-sm font-mono text-neutral-500 uppercase">{shop.primaryColor || '#000000'}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
                 )}
 
                 {activeSettingsTab === 'hours' && (
-                <div className="bg-white p-4 md:p-8 rounded-4xl border border-neutral-200 shadow-sm">
+                  <div className="bg-white p-4 md:p-8 rounded-4xl border border-neutral-200 shadow-sm">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg md:text-xl font-bold">Horário de Funcionamento e Intervalos</h3>
                       <button
@@ -2037,34 +2036,34 @@ export default function AdminPage() {
                     <div className="space-y-4 pt-6 border-t border-neutral-100 mt-6">
                       <h4 className="font-bold text-sm text-neutral-900 theme-text">Intervalo de Almoço</h4>
                       <div className="grid grid-cols-2 gap-4">
-                        <input type="time" value={shop.lunchBreak?.start || ''} onChange={(e) => setShop({...shop, lunchBreak: {...(shop.lunchBreak || {start: '', end: ''}), start: e.target.value}})} className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100" />
-                        <input type="time" value={shop.lunchBreak?.end || ''} onChange={(e) => setShop({...shop, lunchBreak: {...(shop.lunchBreak || {start: '', end: ''}), end: e.target.value}})} className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100" />
+                        <input type="time" value={shop.lunchBreak?.start || ''} onChange={(e) => setShop({ ...shop, lunchBreak: { ...(shop.lunchBreak || { start: '', end: '' }), start: e.target.value } })} className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100" />
+                        <input type="time" value={shop.lunchBreak?.end || ''} onChange={(e) => setShop({ ...shop, lunchBreak: { ...(shop.lunchBreak || { start: '', end: '' }), end: e.target.value } })} className="w-full px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-100" />
                       </div>
                     </div>
-                    
+
                     <div className="space-y-4 pt-6 border-t border-neutral-100 mt-6">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Datas Bloqueadas</label>
-                          <button 
-                            type="button"
-                            onClick={() => setShop({...shop, blackoutPeriods: [...(shop.blackoutPeriods || []), {start: '', end: '', reason: ''}]})}
-                            className="text-xs font-bold text-emerald-600 hover:text-emerald-700 theme-text"
-                          >
-                            + Adicionar Período
-                          </button>
-                        </div>
-                        <div className="space-y-3">
-                          {(shop.blackoutPeriods || []).map((bp, i) => (
-                              <div key={i} className="flex gap-2 items-center bg-neutral-50 p-3 rounded-xl border border-neutral-100">
-                                  <input type="date" value={bp.start} onChange={(e) => { const n = [...(shop.blackoutPeriods || [])]; n[i].start = e.target.value; setShop({...shop, blackoutPeriods: n}) }} className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 text-sm" />
-                                  <input type="date" value={bp.end} onChange={(e) => { const n = [...(shop.blackoutPeriods || [])]; n[i].end = e.target.value; setShop({...shop, blackoutPeriods: n}) }} className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 text-sm" />
-                                  <input type="text" placeholder="Motivo" value={bp.reason} onChange={(e) => { const n = [...(shop.blackoutPeriods || [])]; n[i].reason = e.target.value; setShop({...shop, blackoutPeriods: n}) }} className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 text-sm" />
-                                  <button onClick={() => { const n = [...(shop.blackoutPeriods || [])]; n.splice(i, 1); setShop({...shop, blackoutPeriods: n}) }} className="text-rose-500 p-2">
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                              </div>
-                          ))}
-                        </div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-neutral-400 uppercase ml-1">Datas Bloqueadas</label>
+                        <button
+                          type="button"
+                          onClick={() => setShop({ ...shop, blackoutPeriods: [...(shop.blackoutPeriods || []), { start: '', end: '', reason: '' }] })}
+                          className="text-xs font-bold text-emerald-600 hover:text-emerald-700 theme-text"
+                        >
+                          + Adicionar Período
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {(shop.blackoutPeriods || []).map((bp, i) => (
+                          <div key={i} className="flex gap-2 items-center bg-neutral-50 p-3 rounded-xl border border-neutral-100">
+                            <input type="date" value={bp.start} onChange={(e) => { const n = [...(shop.blackoutPeriods || [])]; n[i].start = e.target.value; setShop({ ...shop, blackoutPeriods: n }) }} className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 text-sm" />
+                            <input type="date" value={bp.end} onChange={(e) => { const n = [...(shop.blackoutPeriods || [])]; n[i].end = e.target.value; setShop({ ...shop, blackoutPeriods: n }) }} className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 text-sm" />
+                            <input type="text" placeholder="Motivo" value={bp.reason} onChange={(e) => { const n = [...(shop.blackoutPeriods || [])]; n[i].reason = e.target.value; setShop({ ...shop, blackoutPeriods: n }) }} className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 text-sm" />
+                            <button onClick={() => { const n = [...(shop.blackoutPeriods || [])]; n.splice(i, 1); setShop({ ...shop, blackoutPeriods: n }) }} className="text-rose-500 p-2">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     {/* Horários de Funcionamento */}
@@ -2082,7 +2081,7 @@ export default function AdminPage() {
                               {day === 'saturday' && 'Sáb'}
                               {day === 'sunday' && 'Dom'}
                             </span>
-                            
+
                             {!hours.closed ? (
                               <div className="flex items-center gap-2 flex-1 justify-end">
                                 <input
@@ -2110,7 +2109,7 @@ export default function AdminPage() {
                             ) : (
                               <span className="text-neutral-400 text-sm font-bold italic flex-1 text-right pr-4">Fechado</span>
                             )}
-                            
+
                             <label className="flex items-center gap-2 cursor-pointer ml-4">
                               <input
                                 type="checkbox"
@@ -2132,125 +2131,125 @@ export default function AdminPage() {
 
                 {activeSettingsTab === 'admin' && (
                   <div className="space-y-8">
-                  <div className="bg-white p-8 rounded-4xl border border-neutral-200 shadow-sm relative overflow-hidden">
-                    {!hasFeature('page_customization') && (
-                      <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6 text-center">
-                        <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
-                          <Star className="text-amber-600 w-6 h-6" />
+                    <div className="bg-white p-8 rounded-4xl border border-neutral-200 shadow-sm relative overflow-hidden">
+                      {!hasFeature('page_customization') && (
+                        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6 text-center">
+                          <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                            <Star className="text-amber-600 w-6 h-6" />
+                          </div>
+                          <h4 className="text-lg font-bold mb-2">Funcionalidade Premium</h4>
+                          <p className="text-neutral-500 text-sm mb-4 max-w-sm">
+                            A personalização da página está disponível apenas no Plano Profissional.
+                          </p>
+                          <Link
+                            href={`/${slug}/admin/subscription`}
+                            className="bg-neutral-900 theme-bg text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-neutral-800 theme-bg-hover transition-all"
+                          >
+                            Fazer Upgrade
+                          </Link>
                         </div>
-                        <h4 className="text-lg font-bold mb-2">Funcionalidade Premium</h4>
-                        <p className="text-neutral-500 text-sm mb-4 max-w-sm">
-                          A personalização da página está disponível apenas no Plano Profissional.
-                        </p>
-                        <Link
-                          href={`/${slug}/admin/subscription`}
-                          className="bg-neutral-900 theme-bg text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-neutral-800 theme-bg-hover transition-all"
-                        >
-                          Fazer Upgrade
-                        </Link>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-xl font-bold">Logotipo</h3>
-                    </div>
-                    <p className="text-neutral-400 text-xs mb-6">Recomendado: 500x500px (Máx. 5MB)</p>
-
-                    <div className="relative h-32 w-32 rounded-4xl overflow-hidden border border-neutral-100 mb-4 bg-neutral-50 flex flex-col items-center justify-center mx-auto shadow-sm">
-                      {shop.logo ? (
-                        <img src={shop.logo} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      ) : (
-                        <ImageIcon className="w-10 h-10 text-neutral-300 mb-1" />
                       )}
-                      <label className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-all cursor-pointer backdrop-blur-[2px]">
-                        <Upload className="w-6 h-6 text-white mb-1" />
-                        <span className="text-white font-bold text-[10px] uppercase tracking-wider bg-black/40 px-2 py-1 rounded-full">Alterar</span>
-                        <input
-                          type="file"
-                          accept=".jpg,.jpeg,.png"
-                          disabled={!hasFeature('page_customization')}
-                          className="hidden"
-                          onChange={(e) => handleImageUpload(e, 'logo')}
-                        />
-                      </label>
+
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xl font-bold">Logotipo</h3>
+                      </div>
+                      <p className="text-neutral-400 text-xs mb-6">Recomendado: 500x500px (Máx. 5MB)</p>
+
+                      <div className="relative h-32 w-32 rounded-4xl overflow-hidden border border-neutral-100 mb-4 bg-neutral-50 flex flex-col items-center justify-center mx-auto shadow-sm">
+                        {shop.logo ? (
+                          <img src={shop.logo} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <ImageIcon className="w-10 h-10 text-neutral-300 mb-1" />
+                        )}
+                        <label className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-all cursor-pointer backdrop-blur-[2px]">
+                          <Upload className="w-6 h-6 text-white mb-1" />
+                          <span className="text-white font-bold text-[10px] uppercase tracking-wider bg-black/40 px-2 py-1 rounded-full">Alterar</span>
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png"
+                            disabled={!hasFeature('page_customization')}
+                            className="hidden"
+                            onChange={(e) => handleImageUpload(e, 'logo')}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-8 rounded-4xl border border-neutral-200 shadow-sm relative overflow-hidden">
+                      {!hasFeature('page_customization') && (
+                        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6 text-center">
+                          <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                            <Star className="text-amber-600 w-6 h-6" />
+                          </div>
+                          <h4 className="text-lg font-bold mb-2">Funcionalidade Premium</h4>
+                          <p className="text-neutral-500 text-sm mb-4 max-w-sm">
+                            A personalização da página está disponível apenas no Plano Profissional.
+                          </p>
+                          <Link
+                            href={`/${slug}/admin/subscription`}
+                            className="bg-neutral-900 theme-bg text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-neutral-800 theme-bg-hover transition-all"
+                          >
+                            Fazer Upgrade
+                          </Link>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xl font-bold">Imagem de Capa</h3>
+                      </div>
+                      <p className="text-neutral-400 text-xs mb-6">Recomendado: 1920x1080px (Máx. 5MB)</p>
+
+                      <div className="relative h-48 w-full rounded-2xl overflow-hidden border border-neutral-100 mb-4 bg-neutral-50 flex flex-col items-center justify-center">
+                        {shop.banner ? (
+                          <img src={shop.banner} alt="Banner" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <ImageIcon className="w-10 h-10 text-neutral-300 mb-2" />
+                        )}
+                        <label className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-all cursor-pointer backdrop-blur-[2px]">
+                          <Upload className="w-8 h-8 text-white mb-2" />
+                          <span className="text-white font-bold text-sm uppercase tracking-wider bg-black/40 px-4 py-2 rounded-full">Alterar Capa</span>
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png"
+                            disabled={!hasFeature('page_customization')}
+                            className="hidden"
+                            onChange={(e) => handleImageUpload(e, 'banner')}
+                          />
+                        </label>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="bg-white p-8 rounded-4xl border border-neutral-200 shadow-sm relative overflow-hidden">
-                    {!hasFeature('page_customization') && (
-                      <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6 text-center">
-                        <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
-                          <Star className="text-amber-600 w-6 h-6" />
-                        </div>
-                        <h4 className="text-lg font-bold mb-2">Funcionalidade Premium</h4>
-                        <p className="text-neutral-500 text-sm mb-4 max-w-sm">
-                          A personalização da página está disponível apenas no Plano Profissional.
-                        </p>
-                        <Link
-                          href={`/${slug}/admin/subscription`}
-                          className="bg-neutral-900 theme-bg text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-neutral-800 theme-bg-hover transition-all"
-                        >
-                          Fazer Upgrade
-                        </Link>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-xl font-bold">Imagem de Capa</h3>
-                    </div>
-                    <p className="text-neutral-400 text-xs mb-6">Recomendado: 1920x1080px (Máx. 5MB)</p>
-
-                    <div className="relative h-48 w-full rounded-2xl overflow-hidden border border-neutral-100 mb-4 bg-neutral-50 flex flex-col items-center justify-center">
-                      {shop.banner ? (
-                        <img src={shop.banner} alt="Banner" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      ) : (
-                        <ImageIcon className="w-10 h-10 text-neutral-300 mb-2" />
-                      )}
-                      <label className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-all cursor-pointer backdrop-blur-[2px]">
-                        <Upload className="w-8 h-8 text-white mb-2" />
-                        <span className="text-white font-bold text-sm uppercase tracking-wider bg-black/40 px-4 py-2 rounded-full">Alterar Capa</span>
-                        <input
-                          type="file"
-                          accept=".jpg,.jpeg,.png"
-                          disabled={!hasFeature('page_customization')}
-                          className="hidden"
-                          onChange={(e) => handleImageUpload(e, 'banner')}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {activeTab === 'support' && (
-                  <motion.div
-                    key="support"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                  >
-                    <SupportCenter
-                      tickets={tickets}
-                      loading={ticketsLoading}
-                      onSendMessage={addMessage}
-                      onCreateTicket={async (data) => {
-                        return createTicket({
-                          ...data,
-                          shopId: data.shopId || shop?.id
-                        });
-                      }}
-                      onFetchTicket={fetchTicket}
-                      onUpdateStatus={async (id, status) => {
-                        if (status === 'closed') await closeTicket(id);
-                      }}
-                      isAdmin={false}
-                    />
-                  </motion.div>
                 )}
+              </motion.div>
+            )}
 
-              </AnimatePresence>
-              </div>
+            {activeTab === 'support' && (
+              <motion.div
+                key="support"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <SupportCenter
+                  tickets={tickets}
+                  loading={ticketsLoading}
+                  onSendMessage={addMessage}
+                  onCreateTicket={async (data) => {
+                    return createTicket({
+                      ...data,
+                      shopId: data.shopId || shop?.id
+                    });
+                  }}
+                  onFetchTicket={fetchTicket}
+                  onUpdateStatus={async (id, status) => {
+                    if (status === 'closed') await closeTicket(id);
+                  }}
+                  isAdmin={false}
+                />
+              </motion.div>
+            )}
+
+          </AnimatePresence>
+        </div>
       </main>
 
       {/* Manual Booking Modal */}

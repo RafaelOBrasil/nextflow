@@ -38,9 +38,9 @@ export default function SaaSAdminLayout({ children }: { children: React.ReactNod
       });
 
       console.log('Response type:', res.type, 'URL:', res.url, 'Status:', res.status);
-      
+
       const contentType = res.headers.get('content-type');
-      
+
       let data;
       try {
         data = await res.json();
@@ -49,7 +49,7 @@ export default function SaaSAdminLayout({ children }: { children: React.ReactNod
         setError('Erro interno do servidor.');
         return;
       }
-      
+
       console.log('Login response:', { status: res.status, data });
 
       if (data.mustChangePassword) {
@@ -94,7 +94,7 @@ export default function SaaSAdminLayout({ children }: { children: React.ReactNod
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-4 font-sans">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           className="max-w-md w-full"
@@ -113,13 +113,13 @@ export default function SaaSAdminLayout({ children }: { children: React.ReactNod
                 {error}
               </div>
             )}
-            
+
             <div className="space-y-2">
               <label className="text-xs font-bold text-neutral-500 uppercase ml-1 tracking-widest">E-mail</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   placeholder="admin@nextflowbarber.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -133,8 +133,9 @@ export default function SaaSAdminLayout({ children }: { children: React.ReactNod
               <label className="text-xs font-bold text-neutral-500 uppercase ml-1 tracking-widest">Senha</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
-                <input 
-                  type="password" 
+                <input
+                  type="password"
+                  autoComplete="current-password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -144,7 +145,7 @@ export default function SaaSAdminLayout({ children }: { children: React.ReactNod
               </div>
             </div>
 
-            <button 
+            <button
               type="submit"
               disabled={loading}
               className="w-full bg-white text-neutral-900 py-5 rounded-2xl font-bold hover:bg-neutral-100 transition-all shadow-xl active:scale-95 text-lg mt-4 disabled:opacity-50"
@@ -202,11 +203,10 @@ export default function SaaSAdminLayout({ children }: { children: React.ReactNod
                 router.push(item.path);
                 setIsMobileMenuOpen(false);
               }}
-              className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-bold transition-all ${
-                pathname === item.path 
-                  ? 'bg-white text-neutral-900 shadow-xl shadow-white/10' 
+              className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-bold transition-all ${pathname === item.path
+                  ? 'bg-white text-neutral-900 shadow-xl shadow-white/10'
                   : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
-              }`}
+                }`}
             >
               <item.icon className="w-5 h-5" />
               {item.name}
@@ -215,7 +215,7 @@ export default function SaaSAdminLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="p-6 border-t border-neutral-800">
-          <button 
+          <button
             onClick={handleLogout}
             className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-bold text-rose-500 hover:bg-rose-500/10 transition-all"
           >
