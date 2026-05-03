@@ -2,7 +2,7 @@
   "name": "Next Flow Barber - Agendamentos Online",
   "short_name": "Next Flow",
   "description": "Sistema de Agendamento Profissional para Barbearias",
-  "start_url": "/",
+  "start_url": "/login",
   "display": "standalone",
   "background_color": "#171717",
   "theme_color": "#171717",
